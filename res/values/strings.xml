@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">三星功能扩展</string>
+    <string name="xposed_description">为三星文件管理添加 WebDAV，解锁 Expert RAW 200MP，扩展应用分身，接入设备健康管理，提供 NFC 息屏刷卡开关，接入 Bixby 自定义 OpenAI 兼容后端，并支持 One UI 主屏幕图标自定义。</string>
+</resources>

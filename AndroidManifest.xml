@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.codex.myfileswebdavpopup"
+    android:versionCode="83"
+    android:versionName="2.9.18">
+
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
+
+    <uses-sdk
+        android:minSdkVersion="23"
+        android:targetSdkVersion="35" />
+
+    <application
+        android:allowBackup="false"
+        android:debuggable="false"
+        android:hasCode="true"
+        android:description="@string/xposed_description"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+        <meta-data
+            android:name="xposedmodule"
+            android:value="true" />
+        <meta-data
+            android:name="xposeddescription"
+            android:value="为三星文件管理添加 WebDAV，解锁 Expert RAW 200MP，扩展应用分身，接入设备健康管理，提供 NFC 息屏刷卡开关，接入 Bixby 自定义 OpenAI 兼容后端，并支持 One UI 主屏幕图标自定义。" />
+        <meta-data
+            android:name="xposedminversion"
+            android:value="82" />
+        <meta-data
+            android:name="xposedscope"
+            android:value="com.sec.android.app.myfiles;com.samsung.android.app.myfiles;com.samsung.android.app.networkstoragemanager;com.samsung.android.app.galaxyraw;com.samsung.android.da.daagent;com.sec.android.sdhms;com.android.nfc;com.samsung.android.bixby.agent;com.sec.android.app.launcher" />
+
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".DeviceHealthActivity"
+            android:exported="false"
+            android:label="设备健康管理" />
+
+        <activity
+            android:name=".NfcScreenOffSettingsActivity"
+            android:exported="false"
+            android:label="NFC 息屏刷卡" />
+
+        <activity
+            android:name=".BixbyOpenAiSettingsActivity"
+            android:exported="false"
+            android:label="Bixby OpenAI 接入" />
+
+        <activity
+            android:name=".LauncherIconCustomizerActivity"
+            android:exported="true"
+            android:label="桌面图标自定义" />
+
+        <activity
+            android:name=".LauncherIconCropActivity"
+            android:exported="false"
+            android:label="裁剪图标" />
+
+        <provider
+            android:name=".NfcSettingsProvider"
+            android:authorities="com.codex.myfileswebdavpopup.nfcsettings"
+            android:exported="true" />
+
+        <provider
+            android:name=".BixbyOpenAiSettingsProvider"
+            android:authorities="com.codex.myfileswebdavpopup.bixbyopenai"
+            android:exported="true" />
+
+        <provider
+            android:name=".LauncherIconCustomizerProvider"
+            android:authorities="com.codex.myfileswebdavpopup.launchericons"
+            android:exported="true" />
+    </application>
+</manifest>
