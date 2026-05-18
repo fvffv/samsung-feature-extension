@@ -127,12 +127,8 @@ public final class SettingsActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT
         ));
 
-        root.addView(buildVersionCard(), new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        ));
-
         ListView listView = new ListView(this);
+        listView.addHeaderView(buildVersionHeader(), null, false);
         listView.setAdapter(new FeatureAdapter());
         listView.setDivider(null);
         listView.setDividerHeight(dp(10));
@@ -157,6 +153,18 @@ public final class SettingsActivity extends Activity {
 
         setContentView(root);
         beginLatestVersionCheck(false);
+    }
+
+    private View buildVersionHeader() {
+        LinearLayout wrapper = new LinearLayout(this);
+        wrapper.setOrientation(LinearLayout.VERTICAL);
+        wrapper.setBackgroundColor(Color.TRANSPARENT);
+        wrapper.setPadding(0, 0, 0, dp(14));
+        wrapper.addView(buildVersionCard(), new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+        return wrapper;
     }
 
     private View buildVersionCard() {
