@@ -2,57 +2,63 @@
 
 ![Samsung Feature Extension Icon](docs/icon.png)
 
-一个面向 Samsung / One UI 的 LSPosed 模块项目，当前整合了多个日常增强功能，应用名为“`三星功能扩展`”，包名为 `com.samsung.feature.extension`。
+Unofficial LSPosed module for Samsung / One UI devices.
 
-> Unofficial LSPosed module for Samsung devices. Not affiliated with Samsung.
+App name: `三星功能扩展`  
+Package name: `com.samsung.feature.extension`
 
 ## Features
 
-- 我的文件 WebDAV 支持
-  - 添加、显示、进入、上传、下载、复制、移动等基础链路可用
-- Expert RAW 相关增强
-- NFC 息屏刷卡开关
-- Bixby 自定义 OpenAI / DeepSeek 兼容 Chat Completions API 接入（实验功能）
-- One UI 主屏幕自定义
-  - 按应用自定义桌面图标
-  - 按应用自定义桌面显示名称
-  - 名称样式支持字体、粗体、斜体、渐变色
-  - 支持从本地文件导入字体
-  - 支持快速重启 One UI 主屏幕
+- Samsung My Files WebDAV support
+  - add, browse, upload, download, copy, move
+- Expert RAW enhancements
+- NFC screen-off card toggle
+- Bixby custom OpenAI / DeepSeek compatible Chat Completions API access
+- One UI launcher customization
+  - per-app icon override
+  - per-app label override
+  - label style: font, bold, italic, gradient
+  - import custom font files
+  - quick restart for One UI Home
 
 ## Environment
 
-- Samsung / One UI 设备
+- Samsung / One UI device
 - LSPosed
 - Android SDK Build-Tools `35.0.0`
 - JDK `21.0.10`
 
 ## Build
 
-由于中文路径可能导致 `aapt2` / `javac` 构建不稳定，建议先映射一个盘符：
+If your checkout path contains non-ASCII characters, map the parent workspace to a temporary drive letter before building:
 
 ```powershell
-cmd /c "subst W: ""D:\桌面\AI工作区\功能添加"""
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "W:\MyFilesWebDavPopupLsp\build-v50.ps1"
+$projectRoot = Resolve-Path .
+$workspaceRoot = Split-Path $projectRoot -Parent
+$projectName = Split-Path $projectRoot -Leaf
+cmd /c "subst W: `"$workspaceRoot`""
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File ("W:\{0}\build-v50.ps1" -f $projectName)
 ```
 
-默认输出 APK：
+The build script copies the final APK to the parent directory of the project:
 
 ```text
-D:\桌面\AI工作区\功能添加\MyFilesWebDavPopupLsp.apk
+..\MyFilesWebDavPopupLsp.apk
 ```
 
 ## Install
 
 ```powershell
-D:\桌面\AI工作区\功能添加\.tools\android-sdk\platform-tools\adb.exe install -r "D:\桌面\AI工作区\功能添加\MyFilesWebDavPopupLsp.apk"
+$projectRoot = Resolve-Path .
+$workspaceRoot = Split-Path $projectRoot -Parent
+adb install -r (Join-Path $workspaceRoot "MyFilesWebDavPopupLsp.apk")
 ```
 
 ## Project Notes
 
-- `build/` 目录为本地构建产物，已在 git 中忽略，不会上传到仓库。
-- 当前仓库保留的是持续迭代中的真实工程结构，没有重写为 Gradle 项目。
-- One UI 主屏幕相关 hook 以明确绑定链路替换为主，避免 `onDraw` 或逐帧刷新带来的卡顿风险。
+- `build/` is ignored and is not committed to the repository.
+- This repository keeps the real working project layout and does not rewrite it into a Gradle project.
+- One UI launcher hooks avoid `onDraw` or per-frame refresh paths to reduce lag risk.
 
 ## Main Files
 
@@ -65,4 +71,4 @@ D:\桌面\AI工作区\功能添加\.tools\android-sdk\platform-tools\adb.exe ins
 
 ## License
 
-暂未附加单独许可证；如需公开协作，建议后续补充。
+No separate license file has been added yet.
