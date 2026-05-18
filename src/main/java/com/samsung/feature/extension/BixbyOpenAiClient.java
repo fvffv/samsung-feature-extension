@@ -1,4 +1,4 @@
-package com.codex.myfileswebdavpopup;
+package com.samsung.feature.extension;
 
 import org.json.JSONArray;
 import org.json.JSONObject;

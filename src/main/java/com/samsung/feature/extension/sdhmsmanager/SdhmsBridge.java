@@ -1,7 +1,7 @@
-package com.codex.sdhmsmanager;
+package com.samsung.feature.extension.sdhmsmanager;
 
 public final class SdhmsBridge {
-    public static final String MODULE_PACKAGE = "com.codex.myfileswebdavpopup";
+    public static final String MODULE_PACKAGE = "com.samsung.feature.extension";
     public static final String TARGET_PACKAGE = "com.sec.android.sdhms";
 
     public static final String ACTION_REQUEST = MODULE_PACKAGE + ".SDHMS_REQUEST";

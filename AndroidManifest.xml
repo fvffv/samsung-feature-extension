@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.codex.myfileswebdavpopup"
+    package="com.samsung.feature.extension"
     android:versionCode="83"
     android:versionName="2.9.18">
 
@@ -74,17 +74,17 @@
 
         <provider
             android:name=".NfcSettingsProvider"
-            android:authorities="com.codex.myfileswebdavpopup.nfcsettings"
+            android:authorities="com.samsung.feature.extension.nfcsettings"
             android:exported="true" />
 
         <provider
             android:name=".BixbyOpenAiSettingsProvider"
-            android:authorities="com.codex.myfileswebdavpopup.bixbyopenai"
+            android:authorities="com.samsung.feature.extension.bixbyopenai"
             android:exported="true" />
 
         <provider
             android:name=".LauncherIconCustomizerProvider"
-            android:authorities="com.codex.myfileswebdavpopup.launchericons"
+            android:authorities="com.samsung.feature.extension.launchericons"
             android:exported="true" />
     </application>
 </manifest>

@@ -1,4 +1,4 @@
-package com.codex.myfileswebdavpopup;
+package com.samsung.feature.extension;
 
 import android.content.ContentProvider;
 import android.content.ContentValues;
@@ -9,7 +9,7 @@ import android.net.Uri;
 import android.os.Bundle;
 
 public final class NfcSettingsProvider extends ContentProvider {
-    public static final String AUTHORITY = "com.codex.myfileswebdavpopup.nfcsettings";
+    public static final String AUTHORITY = "com.samsung.feature.extension.nfcsettings";
     public static final Uri URI = Uri.parse("content://" + AUTHORITY);
     public static final String METHOD_GET = "get";
     public static final String METHOD_SET = "set";

@@ -1,4 +1,4 @@
-package com.codex.myfileswebdavpopup;
+package com.samsung.feature.extension;
 
 import android.app.Activity;
 import android.graphics.Color;

@@ -1,4 +1,4 @@
-package com.codex.myfileswebdavpopup;
+package com.samsung.feature.extension;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -28,7 +28,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.codex.sdhmsmanager.SdhmsBridge;
+import com.samsung.feature.extension.sdhmsmanager.SdhmsBridge;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;

@@ -1,8 +1,7 @@
-package com.codex.myfileswebdavpopup;
+package com.samsung.feature.extension;
 
 import android.content.Context;
 import android.os.Environment;
-import android.util.Log;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -12,15 +11,15 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-final class LauncherIconLog {
-    private static final Object LOCK = new Object();
-    private static final String TAG = "LauncherIconCustomizer";
-    private static final String FILE_NAME = "MyFilesWebDavLsp.log";
+import de.robv.android.xposed.XposedBridge;
 
+final class DiagnosticLogger {
+    private static final Object LOCK = new Object();
+    private static final String FILE_NAME = "MyFilesWebDavLsp.log";
     private static volatile Context appContext;
     private static volatile File logFile;
 
-    private LauncherIconLog() {
+    private DiagnosticLogger() {
     }
 
     static void init(Context context) {
@@ -29,15 +28,17 @@ final class LauncherIconLog {
         }
         appContext = context.getApplicationContext();
         ensureLogFile();
+        log("logger init, path=" + path());
+    }
+
+    static String path() {
+        File file = ensureLogFile();
+        return file != null ? file.getAbsolutePath() : "LSPosed log only";
     }
 
     static void log(String message) {
-        String line = now() + " " + TAG + ": " + message;
-        try {
-            Log.i(TAG, message);
-        } catch (Throwable ignored) {
-            // Keep diagnostics best-effort in non-standard app contexts.
-        }
+        String line = now() + " " + message;
+        XposedBridge.log("MyFilesWebDav: " + message);
         File file = ensureLogFile();
         if (file == null) {
             return;
@@ -48,8 +49,9 @@ final class LauncherIconLog {
                 output = new FileOutputStream(file, true);
                 output.write(line.getBytes("UTF-8"));
                 output.write('\n');
-            } catch (Throwable ignored) {
-                // The normal module process may not be allowed to write public Download.
+            } catch (Throwable t) {
+                XposedBridge.log("MyFilesWebDav: diagnostic file write failed");
+                XposedBridge.log(t);
             } finally {
                 if (output != null) {
                     try {
@@ -69,6 +71,17 @@ final class LauncherIconLog {
         StringWriter writer = new StringWriter();
         throwable.printStackTrace(new PrintWriter(writer));
         log(writer.toString());
+        XposedBridge.log(throwable);
+    }
+
+    static String mask(String value) {
+        if (value == null || value.length() == 0) {
+            return "";
+        }
+        if (value.length() <= 2) {
+            return "**";
+        }
+        return value.substring(0, 1) + "***" + value.substring(value.length() - 1);
     }
 
     private static File ensureLogFile() {
@@ -87,10 +100,10 @@ final class LauncherIconLog {
             }
             Context context = appContext;
             if (context != null) {
-                File externalDir = context.getExternalFilesDir(null);
-                File externalFile = externalDir != null ? new File(externalDir, FILE_NAME) : null;
-                if (canUse(externalFile)) {
-                    logFile = externalFile;
+                File dir = context.getExternalFilesDir(null);
+                File privateFile = dir != null ? new File(dir, FILE_NAME) : null;
+                if (canUse(privateFile)) {
+                    logFile = privateFile;
                     return logFile;
                 }
                 File filesDir = context.getFilesDir();

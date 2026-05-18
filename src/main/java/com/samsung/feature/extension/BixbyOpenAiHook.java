@@ -1,4 +1,4 @@
-package com.codex.myfileswebdavpopup;
+package com.samsung.feature.extension;
 
 import android.app.Activity;
 import android.app.Application;
@@ -77,8 +77,8 @@ public final class BixbyOpenAiHook implements IXposedHookLoadPackage {
     private static final int ID_CONVERSATION_INDICATOR_VIEW = 0x7f0901eb;
     private static final int ID_CONVERSATION_INDICATOR_VIEW_ALT = 0x7f0901ee;
     private static final int ID_PROCESSING_BUTTON = 0x7f090589;
-    private static final String TAG_CHAT_PANEL = "codex_bixby_openai_chat_panel";
-    private static final String TAG_MESSAGE_LIST = "codex_bixby_openai_message_list";
+    private static final String TAG_CHAT_PANEL = "samsung_feature_extension_bixby_openai_chat_panel";
+    private static final String TAG_MESSAGE_LIST = "samsung_feature_extension_bixby_openai_message_list";
     private static final int MAX_NATIVE_RENDERING_EVENTS = 80;
 
     private static volatile Context appContext;
@@ -2362,7 +2362,7 @@ public final class BixbyOpenAiHook implements IXposedHookLoadPackage {
 
     private static String nativeConversationId(View nativeRenderer) {
         int identity = nativeRenderer == null ? 0 : System.identityHashCode(nativeRenderer);
-        return "tr-codex-" + Integer.toHexString(identity);
+        return "tr-samsung-feature-extension-" + Integer.toHexString(identity);
     }
 
     private static String nativeAsrEvent(String requestId, long ts, String type, String value) {
@@ -3521,7 +3521,7 @@ public final class BixbyOpenAiHook implements IXposedHookLoadPackage {
         int written = 0;
         for (int i = 3; i < stack.length && written < maxFrames; i++) {
             String className = stack[i].getClassName();
-            if (className == null || className.startsWith("com.codex.myfileswebdavpopup.")) {
+            if (className == null || className.startsWith("com.samsung.feature.extension.")) {
                 continue;
             }
             if (written > 0) {

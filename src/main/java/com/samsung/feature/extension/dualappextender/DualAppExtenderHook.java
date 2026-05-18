@@ -1,4 +1,4 @@
-package com.codex.dualappextender;
+package com.samsung.feature.extension.dualappextender;
 
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
@@ -23,8 +23,8 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
 public final class DualAppExtenderHook implements IXposedHookLoadPackage {
     private static final String TAG = "DualAppExtender";
     private static final String TARGET_PACKAGE = "com.samsung.android.da.daagent";
-    private static final String MODULE_PACKAGE = "com.codex.myfileswebdavpopup";
-    private static final String RAW_MODULE_PACKAGE = "com.codex.galaxyraw200mp";
+    private static final String MODULE_PACKAGE = "com.samsung.feature.extension";
+    private static final String RAW_MODULE_PACKAGE = "com.samsung.feature.extension.galaxyraw200mp";
     private static volatile Context appContext;
     private static volatile long lastWhitelistPushMs;
 

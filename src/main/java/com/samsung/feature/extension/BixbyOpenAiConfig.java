@@ -1,4 +1,4 @@
-package com.codex.myfileswebdavpopup;
+package com.samsung.feature.extension;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -6,7 +6,7 @@ import android.net.Uri;
 import android.os.Bundle;
 
 public final class BixbyOpenAiConfig {
-    public static final String AUTHORITY = "com.codex.myfileswebdavpopup.bixbyopenai";
+    public static final String AUTHORITY = "com.samsung.feature.extension.bixbyopenai";
     public static final Uri URI = Uri.parse("content://" + AUTHORITY);
     public static final String METHOD_GET = "get";
     public static final String METHOD_SET = "set";
@@ -16,7 +16,7 @@ public final class BixbyOpenAiConfig {
     public static final String EXTRA_MODEL = "model";
     public static final String EXTRA_SYSTEM_PROMPT = "systemPrompt";
 
-    private static final String MODULE_PACKAGE = "com.codex.myfileswebdavpopup";
+    private static final String MODULE_PACKAGE = "com.samsung.feature.extension";
     private static final String PREFS = "bixby_openai";
     private static final String DEFAULT_BASE_URL = "https://api.openai.com/v1/chat/completions";
     private static final String DEFAULT_MODEL = "gpt-4o-mini";

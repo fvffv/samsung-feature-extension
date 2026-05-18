@@ -1,7 +1,7 @@
-com.codex.myfileswebdavpopup.MyFilesWebDavHook
-com.codex.galaxyraw200mp.GalaxyRaw200MpHook
-com.codex.dualappextender.DualAppExtenderHook
-com.codex.sdhmsmanager.SdhmsManagerHook
-com.codex.nfcscreenofftap.NfcScreenOffTapHook
-com.codex.myfileswebdavpopup.BixbyOpenAiHook
-com.codex.myfileswebdavpopup.LauncherIconCustomizerHook
+com.samsung.feature.extension.MyFilesWebDavHook
+com.samsung.feature.extension.galaxyraw200mp.GalaxyRaw200MpHook
+com.samsung.feature.extension.dualappextender.DualAppExtenderHook
+com.samsung.feature.extension.sdhmsmanager.SdhmsManagerHook
+com.samsung.feature.extension.nfcscreenofftap.NfcScreenOffTapHook
+com.samsung.feature.extension.BixbyOpenAiHook
+com.samsung.feature.extension.LauncherIconCustomizerHook

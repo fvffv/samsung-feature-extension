@@ -1,4 +1,4 @@
-package com.codex.sdhmsmanager;
+package com.samsung.feature.extension.sdhmsmanager;
 
 import android.app.Application;
 import android.content.BroadcastReceiver;

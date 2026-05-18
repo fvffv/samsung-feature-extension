@@ -1,4 +1,4 @@
-package com.codex.galaxyraw200mp;
+package com.samsung.feature.extension.galaxyraw200mp;
 
 import android.app.Application;
 import android.content.Context;

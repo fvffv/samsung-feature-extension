@@ -2,7 +2,7 @@
 
 ![Samsung Feature Extension Icon](docs/icon.png)
 
-一个面向 Samsung / One UI 的 LSPosed 模块项目，当前整合了多个日常增强功能，应用名为“`三星功能扩展`”，包名为 `com.codex.myfileswebdavpopup`。
+一个面向 Samsung / One UI 的 LSPosed 模块项目，当前整合了多个日常增强功能，应用名为“`三星功能扩展`”，包名为 `com.samsung.feature.extension`。
 
 > Unofficial LSPosed module for Samsung devices. Not affiliated with Samsung.
 
@@ -58,10 +58,10 @@ D:\桌面\AI工作区\功能添加\.tools\android-sdk\platform-tools\adb.exe ins
 
 - [AndroidManifest.xml](AndroidManifest.xml)
 - [build-v50.ps1](build-v50.ps1)
-- [LauncherIconCustomizerHook.java](src/main/java/com/codex/myfileswebdavpopup/LauncherIconCustomizerHook.java)
-- [LauncherIconCustomizerActivity.java](src/main/java/com/codex/myfileswebdavpopup/LauncherIconCustomizerActivity.java)
-- [LauncherIconCustomizerStore.java](src/main/java/com/codex/myfileswebdavpopup/LauncherIconCustomizerStore.java)
-- [LauncherIconCustomizerProvider.java](src/main/java/com/codex/myfileswebdavpopup/LauncherIconCustomizerProvider.java)
+- [LauncherIconCustomizerHook.java](src/main/java/com/samsung/feature/extension/LauncherIconCustomizerHook.java)
+- [LauncherIconCustomizerActivity.java](src/main/java/com/samsung/feature/extension/LauncherIconCustomizerActivity.java)
+- [LauncherIconCustomizerStore.java](src/main/java/com/samsung/feature/extension/LauncherIconCustomizerStore.java)
+- [LauncherIconCustomizerProvider.java](src/main/java/com/samsung/feature/extension/LauncherIconCustomizerProvider.java)
 
 ## License
 

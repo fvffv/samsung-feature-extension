@@ -1,4 +1,4 @@
-package com.codex.nfcscreenofftap;
+package com.samsung.feature.extension.nfcscreenofftap;
 
 import android.app.Application;
 import android.content.Context;
@@ -20,7 +20,7 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 public final class NfcScreenOffTapHook implements IXposedHookLoadPackage {
     private static final String TARGET_PACKAGE = "com.android.nfc";
-    private static final String AUTHORITY = "com.codex.myfileswebdavpopup.nfcsettings";
+    private static final String AUTHORITY = "com.samsung.feature.extension.nfcsettings";
     private static final Uri SETTINGS_URI = Uri.parse("content://" + AUTHORITY);
     private static final String METHOD_GET = "get";
     private static final String EXTRA_ENABLED = "enabled";

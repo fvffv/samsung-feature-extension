@@ -1,4 +1,4 @@
-package com.codex.myfileswebdavpopup;
+package com.samsung.feature.extension;
 
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -48,8 +48,8 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 public final class LauncherIconCustomizerHook implements IXposedHookLoadPackage {
     private static final String TARGET_PACKAGE = "com.sec.android.app.launcher";
-    private static final String MODULE_PACKAGE = "com.codex.myfileswebdavpopup";
-    private static final String SETTINGS_PREF_KEY = "codex_custom_launcher_icon";
+    private static final String MODULE_PACKAGE = "com.samsung.feature.extension";
+    private static final String SETTINGS_PREF_KEY = "samsung_feature_extension_custom_launcher_icon";
     private static final long CACHE_TTL_MS = 3000L;
 
     private static volatile Context appContext;

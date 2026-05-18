@@ -1,4 +1,4 @@
-package com.codex.myfileswebdavpopup;
+package com.samsung.feature.extension;
 
 import android.content.ContentResolver;
 import android.content.Context;
@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.Map;
 
 public final class LauncherIconCustomizerStore {
-    public static final String AUTHORITY = "com.codex.myfileswebdavpopup.launchericons";
+    public static final String AUTHORITY = "com.samsung.feature.extension.launchericons";
     public static final Uri BASE_URI = Uri.parse("content://" + AUTHORITY);
     public static final String METHOD_HAS = "has";
     public static final String METHOD_DELETE = "delete";
@@ -43,7 +43,7 @@ public final class LauncherIconCustomizerStore {
     public static final String EXTRA_LABEL_FONT_FILE_UPDATED_AT = "labelFontFileUpdatedAt";
     public static final String EXTRA_UPDATED_AT = "updatedAt";
     public static final String EXTRA_PACKAGES = "packages";
-    public static final String ACTION_CHANGED = "com.codex.myfileswebdavpopup.LAUNCHER_ICON_CHANGED";
+    public static final String ACTION_CHANGED = "com.samsung.feature.extension.LAUNCHER_ICON_CHANGED";
     public static final String EXTRA_PACKAGE = "packageName";
 
     private static final String DIR_NAME = "launcher_custom_icons";
