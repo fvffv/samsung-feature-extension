@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $root = $scriptDir
-$out = Join-Path $root 'build/v85-release-1.0-version-header-fix'
+$out = Join-Path $root 'build/v86-release-1.1-home-index-fix'
 $resolvedRoot = (Resolve-Path $root).Path
 $workspaceDir = Split-Path -Parent $scriptDir
 
@@ -62,15 +62,15 @@ Pop-Location
     --ks-key-alias androiddebugkey `
     --ks-pass pass:android `
     --key-pass pass:android `
-    --out "$out/SamsungFeatureExt-v1.0.apk" `
+    --out "$out/SamsungFeatureExt-v1.1.apk" `
     "$out/aligned.apk"
-& "$bt/apksigner.bat" verify --verbose --print-certs "$out/SamsungFeatureExt-v1.0.apk"
+& "$bt/apksigner.bat" verify --verbose --print-certs "$out/SamsungFeatureExt-v1.1.apk"
 
-Copy-Item -Force "$out/SamsungFeatureExt-v1.0.apk" (Join-Path $workspaceDir 'SamsungWebDavRawMergedLsp.apk')
-Copy-Item -Force "$out/SamsungFeatureExt-v1.0.apk" (Join-Path $workspaceDir 'MyFilesWebDavPopupLsp.apk')
+Copy-Item -Force "$out/SamsungFeatureExt-v1.1.apk" (Join-Path $workspaceDir 'SamsungWebDavRawMergedLsp.apk')
+Copy-Item -Force "$out/SamsungFeatureExt-v1.1.apk" (Join-Path $workspaceDir 'MyFilesWebDavPopupLsp.apk')
 
 $outputs = @(
-    "$out/SamsungFeatureExt-v1.0.apk",
+    "$out/SamsungFeatureExt-v1.1.apk",
     (Join-Path $workspaceDir 'SamsungWebDavRawMergedLsp.apk'),
     (Join-Path $workspaceDir 'MyFilesWebDavPopupLsp.apk')
 )

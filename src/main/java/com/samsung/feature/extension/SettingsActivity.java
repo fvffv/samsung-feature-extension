@@ -139,7 +139,11 @@ public final class SettingsActivity extends Activity {
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                Class<?> activityClass = FEATURES[position].activityClass;
+                Object itemObject = parent.getItemAtPosition(position);
+                if (!(itemObject instanceof FeatureItem)) {
+                    return;
+                }
+                Class<?> activityClass = ((FeatureItem) itemObject).activityClass;
                 if (activityClass != null) {
                     startActivity(new Intent(SettingsActivity.this, activityClass));
                 }

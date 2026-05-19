@@ -27,7 +27,7 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
     static final int DOMAIN_WEBDAV = 206;
     private static final int DOMAIN_NATIVE_NETWORK = 205;
 
-    private static final String MODULE_VERSION = "1.0";
+    private static final String MODULE_VERSION = "1.1";
     private static final String TARGET_PACKAGE = "com.sec.android.app.myfiles";
     private static final String TARGET_PACKAGE_ALT = "com.samsung.android.app.myfiles";
     private static final String TARGET_PACKAGE_NSM = "com.samsung.android.app.networkstoragemanager";
