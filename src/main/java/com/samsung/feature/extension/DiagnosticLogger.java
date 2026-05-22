@@ -27,8 +27,10 @@ final class DiagnosticLogger {
             return;
         }
         appContext = context.getApplicationContext();
-        ensureLogFile();
-        log("logger init, path=" + path());
+        if (isEnabled()) {
+            ensureLogFile();
+            log("logger init, path=" + path());
+        }
     }
 
     static String path() {
@@ -37,8 +39,11 @@ final class DiagnosticLogger {
     }
 
     static void log(String message) {
+        if (!isEnabled()) {
+            return;
+        }
         String line = now() + " " + message;
-        XposedBridge.log("MyFilesWebDav: " + message);
+        xposedLog("MyFilesWebDav: " + message);
         File file = ensureLogFile();
         if (file == null) {
             return;
@@ -50,8 +55,8 @@ final class DiagnosticLogger {
                 output.write(line.getBytes("UTF-8"));
                 output.write('\n');
             } catch (Throwable t) {
-                XposedBridge.log("MyFilesWebDav: diagnostic file write failed");
-                XposedBridge.log(t);
+                xposedLog("MyFilesWebDav: diagnostic file write failed");
+                xposedLog(t);
             } finally {
                 if (output != null) {
                     try {
@@ -68,10 +73,17 @@ final class DiagnosticLogger {
         if (throwable == null) {
             return;
         }
+        if (!isEnabled()) {
+            return;
+        }
         StringWriter writer = new StringWriter();
         throwable.printStackTrace(new PrintWriter(writer));
         log(writer.toString());
-        XposedBridge.log(throwable);
+        xposedLog(throwable);
+    }
+
+    static boolean isEnabled() {
+        return LogSettingsProvider.isLogEnabled(appContext);
     }
 
     static String mask(String value) {
@@ -153,5 +165,21 @@ final class DiagnosticLogger {
 
     private static String now() {
         return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).format(new Date());
+    }
+
+    private static void xposedLog(String message) {
+        try {
+            XposedBridge.log(message);
+        } catch (Throwable ignored) {
+            // The module app process does not provide XposedBridge.
+        }
+    }
+
+    private static void xposedLog(Throwable throwable) {
+        try {
+            XposedBridge.log(throwable);
+        } catch (Throwable ignored) {
+            // The module app process does not provide XposedBridge.
+        }
     }
 }

@@ -8,6 +8,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 
+import com.samsung.feature.extension.LogSettingsProvider;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -324,6 +326,9 @@ public final class NfcScreenOffTapHook implements IXposedHookLoadPackage {
     }
 
     private static void log(String message) {
+        if (!LogSettingsProvider.isLogEnabled(appContext)) {
+            return;
+        }
         XposedBridge.log("NfcScreenOffTap: " + message);
     }
 }

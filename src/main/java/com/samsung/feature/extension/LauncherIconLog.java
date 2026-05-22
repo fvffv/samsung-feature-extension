@@ -28,10 +28,15 @@ final class LauncherIconLog {
             return;
         }
         appContext = context.getApplicationContext();
-        ensureLogFile();
+        if (LogSettingsProvider.isLogEnabled(appContext)) {
+            ensureLogFile();
+        }
     }
 
     static void log(String message) {
+        if (!LogSettingsProvider.isLogEnabled(appContext)) {
+            return;
+        }
         String line = now() + " " + TAG + ": " + message;
         try {
             Log.i(TAG, message);
@@ -64,6 +69,9 @@ final class LauncherIconLog {
 
     static void log(Throwable throwable) {
         if (throwable == null) {
+            return;
+        }
+        if (!LogSettingsProvider.isLogEnabled(appContext)) {
             return;
         }
         StringWriter writer = new StringWriter();

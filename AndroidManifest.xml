@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.samsung.feature.extension"
-    android:versionCode="86"
-    android:versionName="1.1">
+    android:versionCode="135"
+    android:versionName="1.2">
 
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <uses-permission android:name="android.permission.INTERNET" />
@@ -34,7 +34,7 @@
             android:value="82" />
         <meta-data
             android:name="xposedscope"
-            android:value="com.sec.android.app.myfiles;com.samsung.android.app.myfiles;com.samsung.android.app.networkstoragemanager;com.samsung.android.app.galaxyraw;com.samsung.android.da.daagent;com.sec.android.sdhms;com.android.nfc;com.samsung.android.bixby.agent;com.sec.android.app.launcher" />
+            android:value="com.sec.android.app.myfiles;com.samsung.android.app.myfiles;com.samsung.android.app.networkstoragemanager;com.samsung.android.app.galaxyraw;com.samsung.android.da.daagent;com.sec.android.sdhms;com.samsung.android.game.gametools;com.android.nfc;com.samsung.android.bixby.agent;com.sec.android.app.launcher;com.sec.android.app.camera;com.android.settings;com.samsung.android.biometrics.app.setting;com.android.systemui" />
 
         <activity
             android:name=".SettingsActivity"
@@ -45,6 +45,9 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
 
         <activity
@@ -58,9 +61,40 @@
             android:label="NFC 息屏刷卡" />
 
         <activity
+            android:name=".TouchSamplingSettingsActivity"
+            android:exported="false"
+            android:label="触控高采样率" />
+
+        <activity
+            android:name=".PassThroughChargingSettingsActivity"
+            android:exported="false"
+            android:label="全局旁路供电" />
+
+        <activity
+            android:name=".PassThroughChargingShortcutActivity"
+            android:exported="true"
+            android:label="@string/shortcut_toggle_passthrough_short"
+            android:theme="@android:style/Theme.NoDisplay" />
+
+        <activity
+            android:name=".ChargingDisplaySettingsActivity"
+            android:exported="false"
+            android:label="充电显示与提示音" />
+
+        <activity
+            android:name=".CameraBitrateSettingsActivity"
+            android:exported="false"
+            android:label="相机视频码率" />
+
+        <activity
             android:name=".BixbyOpenAiSettingsActivity"
             android:exported="false"
             android:label="Bixby OpenAI 接入" />
+
+        <activity
+            android:name=".FingerprintStyleSettingsActivity"
+            android:exported="false"
+            android:label="自定义指纹图标" />
 
         <activity
             android:name=".LauncherIconCustomizerActivity"
@@ -78,8 +112,38 @@
             android:exported="true" />
 
         <provider
+            android:name=".TouchSamplingSettingsProvider"
+            android:authorities="com.samsung.feature.extension.touchsampling"
+            android:exported="true" />
+
+        <provider
+            android:name=".PassThroughChargingSettingsProvider"
+            android:authorities="com.samsung.feature.extension.passthroughcharging"
+            android:exported="true" />
+
+        <provider
+            android:name=".LogSettingsProvider"
+            android:authorities="com.samsung.feature.extension.logsettings"
+            android:exported="true" />
+
+        <provider
+            android:name=".CameraBitrateSettingsProvider"
+            android:authorities="com.samsung.feature.extension.camerabitrate"
+            android:exported="true" />
+
+        <provider
             android:name=".BixbyOpenAiSettingsProvider"
             android:authorities="com.samsung.feature.extension.bixbyopenai"
+            android:exported="true" />
+
+        <provider
+            android:name=".FingerprintStyleSettingsProvider"
+            android:authorities="com.samsung.feature.extension.fingerprintstyle"
+            android:exported="true" />
+
+        <provider
+            android:name=".ChargingStyleSettingsProvider"
+            android:authorities="com.samsung.feature.extension.chargingstyle"
             android:exported="true" />
 
         <provider

@@ -3,12 +3,23 @@ package com.samsung.feature.extension.galaxyraw200mp;
 import android.app.Application;
 import android.content.Context;
 import android.os.Build;
+import android.util.Pair;
+
+import com.samsung.feature.extension.LogSettingsProvider;
+
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -22,6 +33,22 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
     private static final String RES_ULTRA = "BACK_CAMERA_PRO_RESOLUTION_ULTRA_HIGH_RESOLUTION";
     private static final String RES_HIGH = "BACK_CAMERA_PRO_RESOLUTION_HIGH_RESOLUTION";
     private static final String RES_24MP = "BACK_CAMERA_PRO_24MP_HIGH_RESOLUTION";
+    private static final String VALUE_ULTRA = "16320x12240";
+    private static final String VALUE_HIGH = "8160x6120";
+    private static final String VALUE_24MP = "5712x4284";
+    private static final int PICTURE_SIZE_24MP = 1;
+    private static final int PICTURE_SIZE_50MP = 2;
+    private static final int PICTURE_SIZE_FAKE_24MP = 3;
+    private static final int FALLBACK_HIGH_RESOLUTION_ID = 134;
+    private static final int FALLBACK_24MP_RESOLUTION_ID = 146;
+    private static final String TOKEN_24MP = "RESOLUTION_5712X4284";
+    private static final String TOKEN_HIGH = "RESOLUTION_8160X6120";
+    private static final String COMMAND_PICTURE_SIZE_MENU = "BACK_CAMERA_PRO_PICTURE_SIZE_MENU";
+    private static final String COMMAND_PICTURE_SIZE_24MP = "BACK_CAMERA_PRO_PICTURE_SIZE_24MP";
+    private static final String COMMAND_FAKE_PICTURE_SIZE_24MP = "BACK_CAMERA_PRO_FAKE_PICTURE_SIZE_24MP";
+    private static final String COMMAND_PICTURE_SIZE_50MP = "BACK_CAMERA_PRO_PICTURE_SIZE_50MP";
+    private static final String COMMAND_PICTURE_SIZE_12MP = "BACK_CAMERA_PRO_PICTURE_SIZE_12MP";
+    private static final String KEY_BACK_CAMERA_PICTURE_RATIO = "BACK_CAMERA_PICTURE_RATIO";
     private static final String[] SUPPORTED_ULTRA_MODELS = {
             "SM-S918", // Galaxy S23 Ultra
             "SM-S928", // Galaxy S24 Ultra
@@ -32,7 +59,18 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
             "e3",  // Galaxy S24 Ultra
             "pa3"  // Galaxy S25 Ultra / newer app variation name
     };
+    private static final String[] SUPPORTED_24MP_MODELS = {
+            "SM-S928", // Galaxy S24 Ultra
+            "SM-S938"  // Galaxy S25 Ultra
+    };
+    private static final String[] SUPPORTED_24MP_PRODUCTS = {
+            "e3",
+            "pa3"
+    };
     private static volatile boolean accessorsInstalled;
+    private static volatile Context appContext;
+    private static volatile int highResolutionId = -1;
+    private static volatile int unsupported24MpResolutionId = -1;
 
     @Override
     public void handleLoadPackage(final XC_LoadPackage.LoadPackageParam lpparam) {
@@ -53,6 +91,18 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
                 hookFeatureAccessors(lpparam.classLoader);
             }
         });
+        installHook("S23 unsupported 24MP resolution guard", new Installer() {
+            @Override
+            public void install() throws Throwable {
+                hookUnsupported24MpResolutionGuard(lpparam.classLoader);
+            }
+        });
+        installHook("S23 unsupported 24MP command guard", new Installer() {
+            @Override
+            public void install() throws Throwable {
+                hookUnsupported24MpCommandGuard(lpparam.classLoader);
+            }
+        });
         installHook("Application.onCreate reinjection", new Installer() {
             @Override
             public void install() throws Throwable {
@@ -66,6 +116,9 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
         XposedBridge.hookMethod(loadFeature, new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
+                if (param.args != null && param.args.length > 0 && param.args[0] instanceof Context) {
+                    sanitizeUnsupported24MpState((Context) param.args[0], "H1.g.f");
+                }
                 injectFeatureMap(classLoader, "H1.g.f");
             }
         });
@@ -84,8 +137,11 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
                 String key = enumName(param.args != null && param.args.length > 0 ? param.args[0] : null);
+                if (SUPPORT_24MP_MENU.equals(key)) {
+                    param.setResult(Boolean.valueOf(shouldEnableProPictureSizeMenu()));
+                    return;
+                }
                 if (SUPPORT_ULTRA.equals(key)
-                        || SUPPORT_24MP_MENU.equals(key)
                         || SUPPORT_HIGH.equals(key)
                         || SUPPORT_ADAPTIVE_PIXEL.equals(key)) {
                     param.setResult(Boolean.TRUE);
@@ -100,6 +156,10 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
                 String key = enumName(param.args != null && param.args.length > 0 ? param.args[0] : null);
                 Object current = param.getResult();
                 String value = current instanceof String ? (String) current : "";
+                if (RES_24MP.equals(key) && !shouldEnable24MpFeature()) {
+                    param.setResult(VALUE_HIGH);
+                    return;
+                }
                 String forced = forcedResolution(key, value);
                 if (forced != null) {
                     param.setResult(forced);
@@ -111,6 +171,306 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
         log("feature accessor hooks installed");
     }
 
+    private static void hookUnsupported24MpResolutionGuard(final ClassLoader classLoader)
+            throws ClassNotFoundException {
+        final Class<?> settingsClass = Class.forName(
+                "com.samsung.android.app.galaxyraw.setting.repository.CameraSettingsImpl",
+                false,
+                classLoader);
+        final Class<?> settingKeyClass = Class.forName(
+                "com.samsung.android.app.galaxyraw.interfaces.CameraSettings$Key",
+                false,
+                classLoader);
+        Method[] methods = settingsClass.getDeclaredMethods();
+        for (int i = 0; i < methods.length; i++) {
+            Method method = methods[i];
+            String name = method.getName();
+            Class<?>[] parameterTypes = method.getParameterTypes();
+            if (method.getReturnType() == int.class && isResolutionGetterName(name)) {
+                method.setAccessible(true);
+                XposedBridge.hookMethod(method, new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) {
+                        if (!shouldClampUnsupported24Mp()) {
+                            return;
+                        }
+                        Object result = param.getResult();
+                        if (result instanceof Integer
+                                && isUnsupported24MpResolutionId(classLoader, ((Integer) result).intValue())) {
+                            int fallback = highResolutionId(classLoader);
+                            param.setResult(Integer.valueOf(fallback));
+                            log("clamped unsupported S23 24MP getter "
+                                    + param.method.getName() + " to id=" + fallback);
+                        }
+                    }
+                });
+            }
+            if (method.getReturnType() == int.class
+                    && parameterTypes.length == 1
+                    && parameterTypes[0] == settingKeyClass) {
+                method.setAccessible(true);
+                XposedBridge.hookMethod(method, new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) {
+                        if (!shouldClampUnsupported24Mp()
+                                || param.args == null
+                                || param.args.length == 0
+                                || !KEY_BACK_CAMERA_PICTURE_RATIO.equals(enumName(param.args[0]))) {
+                            return;
+                        }
+                        int value = intValue(param.getResult(), Integer.MIN_VALUE);
+                        if (isUnsupportedPictureSizeValue(value)) {
+                            param.setResult(Integer.valueOf(PICTURE_SIZE_50MP));
+                            log("clamped unsupported S23 picture size getter "
+                                    + param.method.getName() + " from value=" + value);
+                        }
+                    }
+                });
+            }
+            if (isResolutionSetterName(name) && method.getParameterTypes().length > 0) {
+                boolean hasIntParameter = false;
+                for (int p = 0; p < parameterTypes.length; p++) {
+                    if (parameterTypes[p] == int.class || parameterTypes[p] == Integer.class) {
+                        hasIntParameter = true;
+                        break;
+                    }
+                }
+                if (!hasIntParameter) {
+                    continue;
+                }
+                method.setAccessible(true);
+                XposedBridge.hookMethod(method, new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) {
+                        if (!shouldClampUnsupported24Mp() || param.args == null) {
+                            return;
+                        }
+                        int fallback = highResolutionId(classLoader);
+                        boolean changed = false;
+                        for (int a = 0; a < param.args.length; a++) {
+                            Object arg = param.args[a];
+                            if (arg instanceof Integer
+                                    && isUnsupported24MpResolutionId(classLoader, ((Integer) arg).intValue())) {
+                                param.args[a] = Integer.valueOf(fallback);
+                                changed = true;
+                            }
+                        }
+                        if (changed) {
+                            log("clamped unsupported S23 24MP setter "
+                                    + param.method.getName() + " to id=" + fallback);
+                        }
+                    }
+                });
+            }
+            if ((method.getReturnType() == void.class || method.getReturnType() == Void.TYPE)
+                    && parameterTypes.length >= 2
+                    && parameterTypes[0] == settingKeyClass
+                    && (parameterTypes[1] == int.class || parameterTypes[1] == Integer.class)) {
+                method.setAccessible(true);
+                XposedBridge.hookMethod(method, new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) {
+                        if (!shouldClampUnsupported24Mp()
+                                || param.args == null
+                                || param.args.length < 2
+                                || !KEY_BACK_CAMERA_PICTURE_RATIO.equals(enumName(param.args[0]))) {
+                            return;
+                        }
+                        int value = intValue(param.args[1], Integer.MIN_VALUE);
+                        if (isUnsupportedPictureSizeValue(value)) {
+                            param.args[1] = Integer.valueOf(PICTURE_SIZE_50MP);
+                            log("clamped unsupported S23 picture size setter "
+                                    + param.method.getName() + " from value=" + value);
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    private static void hookUnsupported24MpCommandGuard(final ClassLoader classLoader)
+            throws ClassNotFoundException, NoSuchMethodException {
+        final Class<?> commandIdClass = Class.forName(
+                "com.samsung.android.app.galaxyraw.interfaces.CommandId",
+                false,
+                classLoader);
+        final Class<?> settingKeyClass = Class.forName(
+                "com.samsung.android.app.galaxyraw.interfaces.CameraSettings$Key",
+                false,
+                classLoader);
+        Class<?> commandMapClass = Class.forName("r1.e", false, classLoader);
+
+        Method commandForValue = commandMapClass.getDeclaredMethod("b", int.class, settingKeyClass);
+        XposedBridge.hookMethod(commandForValue, new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                if (!shouldClampUnsupported24Mp() || param.args == null || param.args.length < 2) {
+                    return;
+                }
+                if (!KEY_BACK_CAMERA_PICTURE_RATIO.equals(enumName(param.args[1]))) {
+                    return;
+                }
+                int value = intValue(param.args[0], Integer.MIN_VALUE);
+                if (value == PICTURE_SIZE_24MP
+                        || value == PICTURE_SIZE_FAKE_24MP
+                        || isUnsupported24MpCommand(param.getResult())) {
+                    Object replacement = replacementPictureSizeCommand(commandIdClass);
+                    if (replacement != null) {
+                        param.setResult(replacement);
+                    }
+                }
+            }
+        });
+
+        Method subOptions = commandMapClass.getDeclaredMethod("e", commandIdClass);
+        XposedBridge.hookMethod(subOptions, new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                if (!shouldClampUnsupported24Mp() || param.args == null || param.args.length == 0) {
+                    return;
+                }
+                if (!COMMAND_PICTURE_SIZE_MENU.equals(enumName(param.args[0]))) {
+                    return;
+                }
+                Object result = param.getResult();
+                if (!(result instanceof ArrayList)) {
+                    return;
+                }
+                ArrayList original = (ArrayList) result;
+                ArrayList filtered = new ArrayList(original.size());
+                boolean changed = false;
+                for (int i = 0; i < original.size(); i++) {
+                    Object item = original.get(i);
+                    if (isUnsupported24MpCommand(item)) {
+                        changed = true;
+                    } else {
+                        filtered.add(item);
+                    }
+                }
+                if (changed) {
+                    param.setResult(filtered);
+                }
+            }
+        });
+
+        Class<?> commandResourceClass = Class.forName("Q1.h", false, classLoader);
+        Method commandResource = commandResourceClass.getDeclaredMethod("a", commandIdClass);
+        XposedBridge.hookMethod(commandResource, new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) {
+                if (!shouldClampUnsupported24Mp() || param.args == null || param.args.length == 0) {
+                    return;
+                }
+                if (!isUnsupported24MpCommand(param.args[0])) {
+                    return;
+                }
+                Object replacement = commandResourceFor(classLoader, commandIdClass, COMMAND_PICTURE_SIZE_50MP);
+                if (replacement == null) {
+                    replacement = commandResourceFor(classLoader, commandIdClass, COMMAND_PICTURE_SIZE_12MP);
+                }
+                if (replacement != null) {
+                    param.setResult(replacement);
+                }
+            }
+        });
+    }
+
+    private static int intValue(Object value, int fallback) {
+        return value instanceof Number ? ((Number) value).intValue() : fallback;
+    }
+
+    private static boolean isUnsupported24MpCommand(Object command) {
+        String name = enumName(command);
+        return COMMAND_PICTURE_SIZE_24MP.equals(name) || COMMAND_FAKE_PICTURE_SIZE_24MP.equals(name);
+    }
+
+    private static Object replacementPictureSizeCommand(Class<?> commandIdClass) {
+        Object replacement = enumConstant(commandIdClass, COMMAND_PICTURE_SIZE_50MP);
+        return replacement != null ? replacement : enumConstant(commandIdClass, COMMAND_PICTURE_SIZE_12MP);
+    }
+
+    private static Object commandResourceFor(ClassLoader classLoader, Class<?> commandIdClass, String commandName) {
+        try {
+            Object command = enumConstant(commandIdClass, commandName);
+            if (command == null) {
+                return null;
+            }
+            Class<?> commandResourceClass = Class.forName("Q1.h", false, classLoader);
+            Field mapField = commandResourceClass.getDeclaredField("f3219a");
+            mapField.setAccessible(true);
+            Object mapObject = mapField.get(null);
+            if (mapObject instanceof Map) {
+                return ((Map) mapObject).get(command);
+            }
+        } catch (Throwable throwable) {
+            log("command resource fallback failed for " + commandName + ": " + throwable);
+        }
+        return null;
+    }
+
+    private static boolean isResolutionGetterName(String name) {
+        return "getBackCameraResolution".equals(name)
+                || "getCameraResolution".equals(name)
+                || "getBackCameraPictureSize".equals(name);
+    }
+
+    private static boolean isResolutionSetterName(String name) {
+        return "setBackCameraResolution".equals(name)
+                || "setCameraResolution".equals(name)
+                || "setBackCameraPictureSize".equals(name);
+    }
+
+    private static boolean shouldClampUnsupported24Mp() {
+        return isUltraDevice() && !shouldEnable24MpFeature();
+    }
+
+    private static boolean isUnsupported24MpResolutionId(ClassLoader classLoader, int id) {
+        return id == unsupported24MpResolutionId(classLoader);
+    }
+
+    private static boolean isUnsupportedPictureSizeValue(int value) {
+        return value == PICTURE_SIZE_24MP || value == PICTURE_SIZE_FAKE_24MP;
+    }
+
+    private static int unsupported24MpResolutionId(ClassLoader classLoader) {
+        int cached = unsupported24MpResolutionId;
+        if (cached > 0) {
+            return cached;
+        }
+        cached = resolutionId(classLoader, VALUE_24MP, FALLBACK_24MP_RESOLUTION_ID);
+        unsupported24MpResolutionId = cached;
+        return cached;
+    }
+
+    private static int highResolutionId(ClassLoader classLoader) {
+        int cached = highResolutionId;
+        if (cached > 0) {
+            return cached;
+        }
+        cached = resolutionId(classLoader, VALUE_HIGH, FALLBACK_HIGH_RESOLUTION_ID);
+        highResolutionId = cached;
+        return cached;
+    }
+
+    private static int resolutionId(ClassLoader classLoader, String resolution, int fallback) {
+        try {
+            Class<?> resolutionClass = Class.forName(
+                    "com.samsung.android.app.galaxyraw.interfaces.Resolution",
+                    false,
+                    classLoader);
+            Method getResolution = resolutionClass.getDeclaredMethod("getResolution", String.class);
+            Object resolutionObject = getResolution.invoke(null, resolution);
+            Method getId = resolutionClass.getDeclaredMethod("getId");
+            Object id = getId.invoke(resolutionObject);
+            if (id instanceof Number) {
+                return ((Number) id).intValue();
+            }
+        } catch (Throwable throwable) {
+            log("resolution id lookup failed for " + resolution + ": " + throwable);
+        }
+        return fallback;
+    }
+
     private static void hookApplicationOnCreate(final ClassLoader classLoader) throws NoSuchMethodException {
         Method onCreate = Application.class.getDeclaredMethod("onCreate");
         XposedBridge.hookMethod(onCreate, new XC_MethodHook() {
@@ -118,9 +478,13 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
             protected void afterHookedMethod(MethodHookParam param) {
                 ClassLoader appClassLoader = classLoader;
                 if (param.thisObject instanceof Application) {
-                    appClassLoader = ((Application) param.thisObject).getClassLoader();
+                    Application application = (Application) param.thisObject;
+                    appContext = application.getApplicationContext();
+                    sanitizeUnsupported24MpState(application, "Application.onCreate");
+                    appClassLoader = application.getClassLoader();
                 }
                 injectFeatureMap(appClassLoader, "Application.onCreate");
+                sanitizeUnsupported24MpCommandMaps(appClassLoader, "Application.onCreate");
             }
         });
     }
@@ -139,13 +503,72 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
             putLocal(map, SUPPORT_HIGH, "true");
             putLocal(map, SUPPORT_ULTRA, "true");
             putLocal(map, SUPPORT_ADAPTIVE_PIXEL, "true");
-            putLocal(map, RES_ULTRA, "16320x12240");
-            putLocalIfBlank(map, RES_HIGH, "8160x6120");
-            putLocalIfBlank(map, RES_24MP, "5712x4284");
+            putLocal(map, RES_ULTRA, VALUE_ULTRA);
+            putLocalIfBlank(map, RES_HIGH, VALUE_HIGH);
+            if (shouldEnable24MpFeature()) {
+                putLocalIfBlank(map, RES_24MP, VALUE_24MP);
+            } else {
+                putLocal(map, RES_24MP, VALUE_HIGH);
+            }
             log("feature map patched from " + source + ", entries=" + map.size() + ", " + deviceSummary());
         } catch (Throwable throwable) {
             log("feature map patch failed from " + source + ": " + throwable);
-            XposedBridge.log(throwable);
+            log(throwable);
+        }
+    }
+
+    private static void sanitizeUnsupported24MpCommandMaps(ClassLoader classLoader, String source) {
+        if (!shouldClampUnsupported24Mp()) {
+            return;
+        }
+        try {
+            Class<?> commandIdClass = Class.forName(
+                    "com.samsung.android.app.galaxyraw.interfaces.CommandId",
+                    true,
+                    classLoader);
+            Class<?> settingKeyClass = Class.forName(
+                    "com.samsung.android.app.galaxyraw.interfaces.CameraSettings$Key",
+                    true,
+                    classLoader);
+            Class<?> commandMapClass = Class.forName("r1.e", true, classLoader);
+            Object replacement = replacementPictureSizeCommand(commandIdClass);
+            Object menu = enumConstant(commandIdClass, COMMAND_PICTURE_SIZE_MENU);
+            Object settingKey = enumConstant(settingKeyClass, KEY_BACK_CAMERA_PICTURE_RATIO);
+            if (replacement == null || menu == null || settingKey == null) {
+                return;
+            }
+
+            Field valueToCommandField = commandMapClass.getDeclaredField("b");
+            valueToCommandField.setAccessible(true);
+            Object valueToCommandObject = valueToCommandField.get(null);
+            if (valueToCommandObject instanceof Map) {
+                Map valueToCommand = (Map) valueToCommandObject;
+                valueToCommand.put(Pair.create(settingKey, Integer.valueOf(PICTURE_SIZE_24MP)), replacement);
+                valueToCommand.put(Pair.create(settingKey, Integer.valueOf(PICTURE_SIZE_FAKE_24MP)), replacement);
+            }
+
+            Field subOptionsField = commandMapClass.getDeclaredField("c");
+            subOptionsField.setAccessible(true);
+            Object subOptionsObject = subOptionsField.get(null);
+            if (subOptionsObject instanceof Map) {
+                Object listObject = ((Map) subOptionsObject).get(menu);
+                if (listObject instanceof ArrayList) {
+                    ArrayList list = (ArrayList) listObject;
+                    boolean changed = false;
+                    for (int i = list.size() - 1; i >= 0; i--) {
+                        if (isUnsupported24MpCommand(list.get(i))) {
+                            list.remove(i);
+                            changed = true;
+                        }
+                    }
+                    if (changed) {
+                        log("sanitized unsupported S23 24MP command list from " + source);
+                    }
+                }
+            }
+        } catch (Throwable throwable) {
+            log("sanitize unsupported 24MP command maps failed from " + source + ": " + throwable);
+            log(throwable);
         }
     }
 
@@ -172,17 +595,87 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
         map.put(name, entry);
     }
 
+    private static void removeLocal(Map map, String name) {
+        map.remove(name);
+    }
+
     private static String forcedResolution(String key, String current) {
         if (RES_ULTRA.equals(key)) {
-            return "16320x12240";
+            return VALUE_ULTRA;
         }
         if (RES_HIGH.equals(key) && isBlank(current)) {
-            return "8160x6120";
+            return VALUE_HIGH;
         }
-        if (RES_24MP.equals(key) && isBlank(current)) {
-            return "5712x4284";
+        if (RES_24MP.equals(key) && shouldEnable24MpFeature() && isBlank(current)) {
+            return VALUE_24MP;
+        }
+        if (RES_24MP.equals(key) && !shouldEnable24MpFeature()) {
+            return VALUE_HIGH;
         }
         return null;
+    }
+
+    private static void sanitizeUnsupported24MpState(Context context, String source) {
+        if (context == null || shouldEnable24MpFeature()) {
+            return;
+        }
+        try {
+            File prefsDir = new File(context.getApplicationInfo().dataDir, "shared_prefs");
+            File[] files = prefsDir.listFiles();
+            if (files == null || files.length == 0) {
+                return;
+            }
+            int changed = 0;
+            for (int i = 0; i < files.length; i++) {
+                File file = files[i];
+                if (file == null || !file.isFile() || !file.getName().endsWith(".xml")) {
+                    continue;
+                }
+                if (file.length() > 1024 * 1024) {
+                    continue;
+                }
+                String content = readUtf8(file);
+                if (content.indexOf(VALUE_24MP) < 0 && content.indexOf(TOKEN_24MP) < 0) {
+                    continue;
+                }
+                String updated = content.replace(VALUE_24MP, VALUE_HIGH).replace(TOKEN_24MP, TOKEN_HIGH);
+                if (!updated.equals(content)) {
+                    writeUtf8(file, updated);
+                    changed++;
+                }
+            }
+            if (changed > 0) {
+                log("sanitized unsupported S23 Ultra 24MP state from " + source + ", files=" + changed);
+            }
+        } catch (Throwable throwable) {
+            log("sanitize unsupported 24MP state failed from " + source + ": " + throwable);
+            log(throwable);
+        }
+    }
+
+    private static String readUtf8(File file) throws IOException {
+        FileInputStream input = new FileInputStream(file);
+        try {
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            byte[] buffer = new byte[4096];
+            int count;
+            while ((count = input.read(buffer)) != -1) {
+                output.write(buffer, 0, count);
+            }
+            return new String(output.toByteArray(), StandardCharsets.UTF_8);
+        } finally {
+            input.close();
+        }
+    }
+
+    private static void writeUtf8(File file, String content) throws IOException {
+        FileOutputStream output = new FileOutputStream(file, false);
+        try {
+            output.write(content.getBytes(StandardCharsets.UTF_8));
+            output.getFD().sync();
+        } finally {
+            output.close();
+        }
     }
 
     private static boolean isBlank(String value) {
@@ -194,15 +687,38 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
         String device = nullToEmpty(Build.DEVICE);
         String product = nullToEmpty(Build.PRODUCT);
         String productName = getSystemProperty("ro.product.product.name");
-        boolean supported = startsWithAny(model, SUPPORTED_ULTRA_MODELS)
-                || startsWithAny(product, SUPPORTED_ULTRA_PRODUCTS)
-                || startsWithAny(device, SUPPORTED_ULTRA_PRODUCTS)
-                || startsWithAny(productName, SUPPORTED_ULTRA_PRODUCTS);
         return "model=" + model
                 + ", product=" + product
                 + ", device=" + device
                 + ", productName=" + productName
-                + ", supportedUltraModel=" + supported;
+                + ", supportedUltraModel=" + isUltraDevice()
+                + ", force24Mp=" + shouldEnable24MpFeature();
+    }
+
+    private static boolean isUltraDevice() {
+        String model = nullToEmpty(Build.MODEL);
+        String device = nullToEmpty(Build.DEVICE);
+        String product = nullToEmpty(Build.PRODUCT);
+        String productName = getSystemProperty("ro.product.product.name");
+        return startsWithAny(model, SUPPORTED_ULTRA_MODELS)
+                || startsWithAny(product, SUPPORTED_ULTRA_PRODUCTS)
+                || startsWithAny(device, SUPPORTED_ULTRA_PRODUCTS)
+                || startsWithAny(productName, SUPPORTED_ULTRA_PRODUCTS);
+    }
+
+    private static boolean shouldEnable24MpFeature() {
+        String model = nullToEmpty(Build.MODEL);
+        String device = nullToEmpty(Build.DEVICE);
+        String product = nullToEmpty(Build.PRODUCT);
+        String productName = getSystemProperty("ro.product.product.name");
+        return startsWithAny(model, SUPPORTED_24MP_MODELS)
+                || startsWithAny(product, SUPPORTED_24MP_PRODUCTS)
+                || startsWithAny(device, SUPPORTED_24MP_PRODUCTS)
+                || startsWithAny(productName, SUPPORTED_24MP_PRODUCTS);
+    }
+
+    private static boolean shouldEnableProPictureSizeMenu() {
+        return isUltraDevice();
     }
 
     private static boolean startsWithAny(String value, String[] prefixes) {
@@ -237,18 +753,40 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
         return value == null ? "" : String.valueOf(value);
     }
 
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static Object enumConstant(Class<?> enumClass, String name) {
+        if (enumClass == null || name == null || !Enum.class.isAssignableFrom(enumClass)) {
+            return null;
+        }
+        try {
+            return Enum.valueOf((Class) enumClass, name);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
     private static void installHook(String name, Installer installer) {
         try {
             installer.install();
             log(name + " installed");
         } catch (Throwable throwable) {
             log(name + " failed: " + throwable);
-            XposedBridge.log(throwable);
+            log(throwable);
         }
     }
 
     private static void log(String message) {
+        if (!LogSettingsProvider.isLogEnabled(appContext)) {
+            return;
+        }
         XposedBridge.log(TAG + ": " + message);
+    }
+
+    private static void log(Throwable throwable) {
+        if (!LogSettingsProvider.isLogEnabled(appContext)) {
+            return;
+        }
+        XposedBridge.log(throwable);
     }
 
     private interface Installer {

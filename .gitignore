@@ -2,3 +2,12 @@
 /.idea/
 *.iml
 Thumbs.db
+
+# Local dependency download/cache leftovers. The manual build script only
+# consumes the checked-in JAR files under libs/.
+/libs/*.aar
+/libs/*.pom
+/libs/*.zip
+/libs/*.xml
+/libs/*.module.json
+/libs/lottie-6.7.1/

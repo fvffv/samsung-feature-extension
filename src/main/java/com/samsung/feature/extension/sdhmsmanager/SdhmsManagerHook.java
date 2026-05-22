@@ -15,6 +15,8 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 
+import com.samsung.feature.extension.LogSettingsProvider;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -160,7 +162,7 @@ public final class SdhmsManagerHook implements IXposedHookLoadPackage {
             data.putBoolean("success", false);
             data.putString("error", throwable.getClass().getName() + ": " + throwable.getMessage());
             log("command failed: " + throwable);
-            XposedBridge.log(throwable);
+            log(throwable);
             try {
                 data.putBundle("snapshot", buildSnapshot());
             } catch (Throwable ignored) {
@@ -490,12 +492,22 @@ public final class SdhmsManagerHook implements IXposedHookLoadPackage {
             log(name + " installed");
         } catch (Throwable throwable) {
             log(name + " failed: " + throwable);
-            XposedBridge.log(throwable);
+            log(throwable);
         }
     }
 
     private static void log(String message) {
+        if (!LogSettingsProvider.isLogEnabled(appContext)) {
+            return;
+        }
         XposedBridge.log(TAG + ": " + message);
+    }
+
+    private static void log(Throwable throwable) {
+        if (!LogSettingsProvider.isLogEnabled(appContext)) {
+            return;
+        }
+        XposedBridge.log(throwable);
     }
 
     private interface Installer {

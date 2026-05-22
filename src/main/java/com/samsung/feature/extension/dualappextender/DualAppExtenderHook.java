@@ -7,6 +7,8 @@ import android.database.MatrixCursor;
 import android.net.Uri;
 import android.os.Bundle;
 
+import com.samsung.feature.extension.LogSettingsProvider;
+
 import java.text.Collator;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -233,7 +235,7 @@ public final class DualAppExtenderHook implements IXposedHookLoadPackage {
             log("system whitelist pushed, count=" + map.size());
         } catch (Throwable t) {
             log("system whitelist push failed: " + t);
-            XposedBridge.log(t);
+            log(t);
         }
     }
 
@@ -261,7 +263,7 @@ public final class DualAppExtenderHook implements IXposedHookLoadPackage {
             sortPackagesByLabel(pm, result);
         } catch (Throwable t) {
             log("build eligible package list failed: " + t);
-            XposedBridge.log(t);
+            log(t);
         }
         return result;
     }
@@ -313,12 +315,22 @@ public final class DualAppExtenderHook implements IXposedHookLoadPackage {
             log(name + " installed");
         } catch (Throwable throwable) {
             log(name + " failed: " + throwable);
-            XposedBridge.log(throwable);
+            log(throwable);
         }
     }
 
     private static void log(String message) {
+        if (!LogSettingsProvider.isLogEnabled(appContext)) {
+            return;
+        }
         XposedBridge.log(TAG + ": " + message);
+    }
+
+    private static void log(Throwable throwable) {
+        if (!LogSettingsProvider.isLogEnabled(appContext)) {
+            return;
+        }
+        XposedBridge.log(throwable);
     }
 
     private interface Installer {

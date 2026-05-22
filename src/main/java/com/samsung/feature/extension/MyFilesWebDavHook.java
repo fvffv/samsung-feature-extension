@@ -7,12 +7,15 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Looper;
 import android.util.SparseArray;
 import android.widget.ArrayAdapter;
 import android.widget.ListAdapter;
 import android.widget.ListView;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +30,7 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
     static final int DOMAIN_WEBDAV = 206;
     private static final int DOMAIN_NATIVE_NETWORK = 205;
 
-    private static final String MODULE_VERSION = "1.1";
+    private static final String MODULE_VERSION = "1.2.32";
     private static final String TARGET_PACKAGE = "com.sec.android.app.myfiles";
     private static final String TARGET_PACKAGE_ALT = "com.samsung.android.app.myfiles";
     private static final String TARGET_PACKAGE_NSM = "com.samsung.android.app.networkstoragemanager";
@@ -173,27 +176,103 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
         throw new IllegalStateException("App class not found: " + className, last);
     }
 
+    private static Class<?> findExactAppClass(String className, ClassLoader classLoader) throws ClassNotFoundException {
+        return Class.forName(className, false, classLoader);
+    }
+
     private static String[] classNameAliases(String className) {
+        if ("w8.G".equals(className)) {
+            return new String[]{className, "ha.O"};
+        }
         if ("w8.AbstractC2015g".equals(className)) {
             return new String[]{className, "w8.g"};
         }
+        if ("U7.G".equals(className)) {
+            return new String[]{className, "D9.L"};
+        }
         if ("U7.AbstractC0263g".equals(className)) {
-            return new String[]{className, "U7.g"};
+            return new String[]{className, "U7.g", "D9.AbstractC0165g", "D9.g"};
+        }
+        if ("D9.AbstractC0165g".equals(className)) {
+            return new String[]{className, "D9.g"};
+        }
+        if ("Y5.j".equals(className)) {
+            return new String[]{className, "u7.j", "u7.AbstractC2492j"};
+        }
+        if ("Y5.h".equals(className)) {
+            return new String[]{className, "A0.d"};
+        }
+        if ("Y5.g".equals(className)) {
+            return new String[]{className, "u7.InterfaceC2490h"};
+        }
+        if ("V5.E".equals(className)) {
+            return new String[]{className, "r7.H"};
+        }
+        if ("V5.F".equals(className)) {
+            return new String[]{className, "r7.I"};
+        }
+        if ("y8.f".equals(className)) {
+            return new String[]{className, "ka.f"};
+        }
+        if ("y8.g".equals(className)) {
+            return new String[]{className, "ka.g"};
+        }
+        if ("J6.c".equals(className)) {
+            return new String[]{className, "A8.b"};
+        }
+        if ("w6.H".equals(className)) {
+            return new String[]{className, "T7.N"};
+        }
+        if ("w6.I".equals(className)) {
+            return new String[]{className, "T7.O"};
+        }
+        if ("dc.g".equals(className)) {
+            return new String[]{className, "sc.AbstractC2295H", "sc.H"};
+        }
+        if ("sc.AbstractC2295H".equals(className)) {
+            return new String[]{className, "sc.H"};
+        }
+        if ("ha.AbstractC1537i".equals(className)) {
+            return new String[]{className, "ha.i"};
+        }
+        if ("F1.m".equals(className)) {
+            return new String[]{className, "K7.a"};
+        }
+        if ("J6.h".equals(className)) {
+            return new String[]{className, "h8.d", "h8.C1521d"};
+        }
+        if ("e6.u".equals(className)) {
+            return new String[]{className, "A7.w"};
+        }
+        if ("S5.j".equals(className)) {
+            return new String[]{className, "o7.i"};
+        }
+        if ("S5.h".equals(className)) {
+            return new String[]{className, "o7.g"};
+        }
+        if ("X5.T0".equals(className)) {
+            return new String[]{className, "t7.AbstractC2401g1"};
+        }
+        if ("a.AbstractC0577a".equals(className)) {
+            return new String[]{className, "a.a", "A.AbstractC0577a"};
         }
         if ("q8.C1747e".equals(className)) {
-            return new String[]{className, "q8.e"};
+            return new String[]{className, "q8.e", "aa.e", "aa.C0617e"};
         }
         if ("q8.EnumC1751i".equals(className)) {
-            return new String[]{className, "q8.i"};
+            return new String[]{className, "q8.i", "aa.i"};
         }
         if ("x7.C2094a".equals(className)) {
             return new String[]{className, "x7.a"};
         }
         if ("e6.AbstractC1145d".equals(className)) {
-            return new String[]{className, "e6.d", "E6.AbstractC1145d", "E6.d"};
+            return new String[]{className, "e6.d", "E6.AbstractC1145d", "E6.d", "A7.AbstractC0044d"};
         }
         if ("p8.AbstractC1705c".equals(className)) {
-            return new String[]{className, "p8.c"};
+            return new String[]{className, "p8.c", "Z9.c"};
+        }
+        if (LABEL_ENUM_CLASS.equals(className)) {
+            return new String[]{"ha.E", "ha.EnumC1527E", "Ha.E", "Ha.EnumC1527E", className};
         }
         return new String[]{className};
     }
@@ -206,6 +285,20 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
     ) {
         return XposedHelpers.findAndHookMethod(
                 findAppClass(className, classLoader),
+                methodName,
+                parameterTypesAndCallback
+        );
+    }
+
+    private static XC_MethodHook.Unhook hookExactAppMethod(
+            String className,
+            ClassLoader classLoader,
+            String methodName,
+            Object... parameterTypesAndCallback
+    ) {
+        return XposedHelpers.findAndHookMethod(
+                className,
+                classLoader,
                 methodName,
                 parameterTypesAndCallback
         );
@@ -258,75 +351,139 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
     }
 
     private static void hookAddNetworkStorageDialog(final ClassLoader classLoader) {
-        hookAppMethod(
-                DIALOG_CLASS,
-                classLoader,
-                "initListItem",
-                new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) {
-                        try {
-                            ensureWebDavListItem(param.thisObject, classLoader);
-                        } catch (Throwable t) {
-                            XposedBridge.log("MyFilesWebDav: append WebDAV item failed");
-                            XposedBridge.log(t);
-                        }
-                    }
-                }
-        );
-
-        hookAppMethod(
-                DIALOG_CLASS,
-                classLoader,
-                "getItems",
-                new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) {
-                        try {
-                            CharSequence[] items = (CharSequence[]) param.getResult();
-                            if (items == null || items.length == 0) {
-                                return;
-                            }
-
-                            ArrayList<?> listItems =
-                                    (ArrayList<?>) XposedHelpers.getObjectField(param.thisObject, "listItems");
-                            int limit = Math.min(items.length, listItems.size());
-                            for (int i = 0; i < limit; i++) {
-                                Object item = listItems.get(i);
-                                if (readDomainType(item) == DOMAIN_WEBDAV) {
-                                    items[i] = DISPLAY_WEBDAV;
-                                    param.setResult(items);
-                                    return;
+        installOptionalHook("AddNetworkStorageDialog.initListItem", new HookInstaller() {
+            @Override
+            public void install() {
+                hookAppMethod(
+                        DIALOG_CLASS,
+                        classLoader,
+                        "initListItem",
+                        new XC_MethodHook() {
+                            @Override
+                            protected void afterHookedMethod(MethodHookParam param) {
+                                try {
+                                    if (ensureWebDavListItem(param.thisObject, classLoader)) {
+                                        DiagnosticLogger.log("add dialog initListItem ensured WebDAV");
+                                    }
+                                } catch (Throwable t) {
+                                    DiagnosticLogger.log("append WebDAV item failed");
+                                    DiagnosticLogger.log(t);
                                 }
                             }
-                        } catch (Throwable t) {
-                            XposedBridge.log("MyFilesWebDav: rename WebDAV item failed");
-                            XposedBridge.log(t);
                         }
-                    }
-                }
-        );
+                );
+            }
+        });
 
-        hookAppMethod(
-                DIALOG_CLASS,
-                classLoader,
-                "createDialog",
-                new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) {
-                        try {
-                            ensureWebDavListItem(param.thisObject, classLoader);
-                            Dialog dialog = (Dialog) param.getResult();
-                            if (dialog != null) {
-                                replaceDialogListAdapter(param.thisObject, dialog);
+        installOptionalHook("AddNetworkStorageDialog.getItems", new HookInstaller() {
+            @Override
+            public void install() {
+                hookAppMethod(
+                        DIALOG_CLASS,
+                        classLoader,
+                        "getItems",
+                        new XC_MethodHook() {
+                            @Override
+                            protected void afterHookedMethod(MethodHookParam param) {
+                                try {
+                                    ensureWebDavListItem(param.thisObject, classLoader);
+                                    ArrayList<?> listItems =
+                                            (ArrayList<?>) XposedHelpers.getObjectField(param.thisObject, "listItems");
+                                    if (containsDomain(listItems, DOMAIN_WEBDAV)) {
+                                        CharSequence[] labels = labelsFromListItems(listItems);
+                                        param.setResult(labels);
+                                        DiagnosticLogger.log("add dialog getItems replaced count=" + labels.length);
+                                    }
+                                } catch (Throwable t) {
+                                    DiagnosticLogger.log("rename WebDAV item failed");
+                                    DiagnosticLogger.log(t);
+                                }
                             }
-                        } catch (Throwable t) {
-                            XposedBridge.log("MyFilesWebDav: createDialog WebDAV fallback failed");
-                            XposedBridge.log(t);
                         }
-                    }
-                }
-        );
+                );
+            }
+        });
+
+        installOptionalHook("AddNetworkStorageDialog.createDialog", new HookInstaller() {
+            @Override
+            public void install() {
+                hookAppMethod(
+                        DIALOG_CLASS,
+                        classLoader,
+                        "createDialog",
+                        new XC_MethodHook() {
+                            @Override
+                            protected void afterHookedMethod(MethodHookParam param) {
+                                try {
+                                    ensureWebDavListItem(param.thisObject, classLoader);
+                                    Dialog dialog = (Dialog) param.getResult();
+                                    if (dialog != null) {
+                                        replaceDialogListAdapter(param.thisObject, dialog);
+                                    }
+                                } catch (Throwable t) {
+                                    DiagnosticLogger.log("createDialog WebDAV fallback failed");
+                                    DiagnosticLogger.log(t);
+                                }
+                            }
+                        }
+                );
+            }
+        });
+
+        installOptionalHook("AddNetworkStorageDialog.staticGetDialog", new HookInstaller() {
+            @Override
+            public void install() {
+                hookAppMethod(
+                        DIALOG_CLASS,
+                        classLoader,
+                        "getDialog",
+                        findAppClass("q8.C1747e", classLoader),
+                        new XC_MethodHook() {
+                            @Override
+                            protected void afterHookedMethod(MethodHookParam param) {
+                                ensureDialogResultHasWebDav(param.getResult(), classLoader, "staticGetDialog");
+                            }
+                        }
+                );
+            }
+        });
+
+        installOptionalHook("AddNetworkStorageDialog.companionGetDialog", new HookInstaller() {
+            @Override
+            public void install() {
+                hookAppMethod(
+                        DIALOG_CLASS + "$Companion",
+                        classLoader,
+                        "getDialog",
+                        findAppClass("q8.C1747e", classLoader),
+                        new XC_MethodHook() {
+                            @Override
+                            protected void afterHookedMethod(MethodHookParam param) {
+                                ensureDialogResultHasWebDav(param.getResult(), classLoader, "companionGetDialog");
+                            }
+                        }
+                );
+            }
+        });
+
+        installOptionalHook("AddNetworkStorageDialog.dialogManager", new HookInstaller() {
+            @Override
+            public void install() {
+                hookAppMethod(
+                        "com.sec.android.app.myfiles.ui.dialog.DialogManager",
+                        classLoader,
+                        "getAddNetworkStorageServerDialog",
+                        findAppClass("q8.C1747e", classLoader),
+                        findAppClass("R8.a", classLoader),
+                        new XC_MethodHook() {
+                            @Override
+                            protected void afterHookedMethod(MethodHookParam param) {
+                                ensureDialogResultHasWebDav(param.getResult(), classLoader, "dialogManager");
+                            }
+                        }
+                );
+            }
+        });
     }
 
     private static void hookDialogBuilderFallback(final ClassLoader classLoader) {
@@ -395,14 +552,126 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
     }
 
     private static void hookDomainHelpers(final ClassLoader classLoader) {
-        hookIntBoolean("w8.AbstractC2015g", classLoader, "j0", true);
-        hookIntBoolean("M5.h", classLoader, "l", true);
-        hookIntBoolean("M5.h", classLoader, "q", true);
+        installOptionalHook("DomainHelpers.networkStorage.old", new HookInstaller() {
+            @Override
+            public void install() {
+                hookIntBoolean("w8.AbstractC2015g", classLoader, "j0", true);
+            }
+        });
+        installOptionalHook("DomainHelpers.networkStorage.new", new HookInstaller() {
+            @Override
+            public void install() {
+                hookIntBoolean("ha.AbstractC1537i", classLoader, "l0", true);
+            }
+        });
+        installOptionalHook("DomainHelpers.domainNetwork.old", new HookInstaller() {
+            @Override
+            public void install() {
+                hookIntBoolean("M5.h", classLoader, "l", true);
+            }
+        });
+        installOptionalHook("DomainHelpers.domainCloudNetwork.old", new HookInstaller() {
+            @Override
+            public void install() {
+                hookIntBoolean("M5.h", classLoader, "q", true);
+            }
+        });
+        installOptionalHook("DomainHelpers.domainNetwork.new", new HookInstaller() {
+            @Override
+            public void install() {
+                hookIntBoolean("j7.e", classLoader, "i", true);
+            }
+        });
+        installOptionalHook("DomainHelpers.domainCloudNetwork.new", new HookInstaller() {
+            @Override
+            public void install() {
+                hookIntBoolean("j7.e", classLoader, "o", true);
+            }
+        });
 
+        installOptionalHook("NetworkStorageUtils.name.old", new HookInstaller() {
+            @Override
+            public void install() {
+                hookNetworkStorageName(classLoader, "w8.AbstractC2015g", "G");
+            }
+        });
+        installOptionalHook("NetworkStorageUtils.name.new", new HookInstaller() {
+            @Override
+            public void install() {
+                hookNetworkStorageName(classLoader, "ha.AbstractC1537i", "I");
+            }
+        });
+        installOptionalHook("NetworkStorageUtils.page.old", new HookInstaller() {
+            @Override
+            public void install() {
+                hookNetworkStoragePageType(classLoader, "w8.AbstractC2015g", "E");
+            }
+        });
+        installOptionalHook("NetworkStorageUtils.page.new", new HookInstaller() {
+            @Override
+            public void install() {
+                hookNetworkStoragePageType(classLoader, "ha.AbstractC1537i", "G");
+            }
+        });
+        installOptionalHook("NetworkStorageUtils.pageVariant.old", new HookInstaller() {
+            @Override
+            public void install() {
+                hookNetworkStoragePageVariant(classLoader, "w8.AbstractC2015g", "F");
+            }
+        });
+        installOptionalHook("NetworkStorageUtils.pageVariant.new", new HookInstaller() {
+            @Override
+            public void install() {
+                hookNetworkStoragePageVariant(classLoader, "ha.AbstractC1537i", "H");
+            }
+        });
+        installOptionalHook("MediaFileIcon.old", new HookInstaller() {
+            @Override
+            public void install() {
+                hookStorageIcon(classLoader, "U7.G", "n", "n", 202);
+            }
+        });
+        installOptionalHook("MediaFileIcon.new", new HookInstaller() {
+            @Override
+            public void install() {
+                hookStorageIcon(classLoader, "D9.L", "o", "o", 202);
+            }
+        });
+        installOptionalHook("PageTypeMapper.old.b", new HookInstaller() {
+            @Override
+            public void install() {
+                hookNetworkStoragePageType(classLoader, "U7.AbstractC0263g", "b");
+            }
+        });
+        installOptionalHook("PageTypeMapper.old.c", new HookInstaller() {
+            @Override
+            public void install() {
+                hookNetworkStorageConstantInt("U7.AbstractC0263g", classLoader, "c", 11);
+            }
+        });
+        installOptionalHook("PageTypeMapper.new.b", new HookInstaller() {
+            @Override
+            public void install() {
+                hookNetworkStoragePageType(classLoader, "D9.AbstractC0165g", "b");
+            }
+        });
+        installOptionalHook("PageTypeMapper.new.c", new HookInstaller() {
+            @Override
+            public void install() {
+                hookNetworkStorageConstantInt("D9.AbstractC0165g", classLoader, "c", 11);
+            }
+        });
+    }
+
+    private static void hookNetworkStorageName(
+            final ClassLoader classLoader,
+            String className,
+            String methodName
+    ) {
         hookAppMethod(
-                "w8.AbstractC2015g",
+                className,
                 classLoader,
-                "G",
+                methodName,
                 int.class,
                 new XC_MethodHook() {
                     @Override
@@ -413,11 +682,17 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
                     }
                 }
         );
+    }
 
+    private static void hookNetworkStoragePageType(
+            final ClassLoader classLoader,
+            String className,
+            String methodName
+    ) {
         hookAppMethod(
-                "w8.AbstractC2015g",
+                className,
                 classLoader,
-                "E",
+                methodName,
                 int.class,
                 new XC_MethodHook() {
                     @Override
@@ -428,68 +703,76 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
                     }
                 }
         );
+    }
 
+    private static void hookNetworkStoragePageVariant(
+            final ClassLoader classLoader,
+            String className,
+            String methodName
+    ) {
         hookAppMethod(
-                "w8.AbstractC2015g",
+                className,
                 classLoader,
-                "F",
+                methodName,
                 int.class,
                 boolean.class,
                 new XC_MethodHook() {
                     @Override
                     protected void beforeHookedMethod(MethodHookParam param) {
                         if (isWebDav(param.args[0])) {
-                            String field = ((Boolean) param.args[1]) ? "f21296Q" : "f21292O";
-                            param.setResult(getEnumField(classLoader, field));
+                            param.setResult(getNetworkStoragePageVariant(
+                                    classLoader,
+                                    Boolean.TRUE.equals(param.args[1])
+                            ));
                         }
                     }
                 }
         );
+    }
 
+    private static void hookStorageIcon(
+            final ClassLoader classLoader,
+            String className,
+            String methodName,
+            final String fallbackMethodName,
+            final int fallbackDomain
+    ) {
         hookAppMethod(
-                "U7.G",
+                className,
                 classLoader,
-                "n",
+                methodName,
                 int.class,
                 new XC_MethodHook() {
                     @Override
                     protected void beforeHookedMethod(MethodHookParam param) {
                         if (isWebDav(param.args[0])) {
                             param.setResult(XposedHelpers.callStaticMethod(
-                                    findAppClass("U7.G", classLoader),
-                                    "n",
-                                    202
+                                    findAppClass(className, classLoader),
+                                    fallbackMethodName,
+                                    fallbackDomain
                             ));
                         }
                     }
                 }
         );
+    }
 
+    private static void hookNetworkStorageConstantInt(
+            String className,
+            ClassLoader classLoader,
+            String methodName,
+            final int value
+    ) {
         hookAppMethod(
-                "U7.AbstractC0263g",
+                className,
                 classLoader,
-                "b",
+                methodName,
                 int.class,
                 new XC_MethodHook() {
                     @Override
                     protected void beforeHookedMethod(MethodHookParam param) {
                         if (isWebDav(param.args[0])) {
-                            param.setResult(getFtpPageType(classLoader));
-                        }
-                    }
-                }
-        );
-
-        hookAppMethod(
-                "U7.AbstractC0263g",
-                classLoader,
-                "c",
-                int.class,
-                new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) {
-                        if (isWebDav(param.args[0])) {
-                            param.setResult(11);
+                            param.setResult(value);
                         }
                     }
                 }
@@ -630,6 +913,32 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
             }
         });
 
+        installOptionalHook("StoragePathUtils.E.new", new HookInstaller() {
+            @Override
+            public void install() {
+                hookAppMethod(
+                        "ha.O",
+                        classLoader,
+                        "E",
+                        String.class,
+                        new XC_MethodHook() {
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam param) {
+                                String path = trimTrailingPathSlash((String) param.args[0]);
+                                if (WEBDAV_ROOT_PATH.equals(path)) {
+                                    param.setResult(true);
+                                    return;
+                                }
+                                long id = parseWebDavServerId(path);
+                                if (id > 0 && buildWebDavServerPath(id).equals(path)) {
+                                    param.setResult(true);
+                                }
+                            }
+                        }
+                );
+            }
+        });
+
         installOptionalHook("NetworkStorageUtils.l", new HookInstaller() {
             @Override
             public void install() {
@@ -654,46 +963,100 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
                 );
             }
         });
+
+        installOptionalHook("NetworkStorageUtils.m.new", new HookInstaller() {
+            @Override
+            public void install() {
+                hookAppMethod(
+                        "ha.AbstractC1537i",
+                        classLoader,
+                        "m",
+                        long.class,
+                        int.class,
+                        String.class,
+                        new XC_MethodHook() {
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam param) {
+                                if (!isWebDav(param.args[1])) {
+                                    return;
+                                }
+                                long serverId = ((Number) param.args[0]).longValue();
+                                String path = (String) param.args[2];
+                                param.setResult(detachWebDavServerPath(path, serverId));
+                            }
+                        }
+                );
+            }
+        });
     }
 
     private static void hookFileInfoFactory(final ClassLoader classLoader) {
-        hookAppMethod(
-                "Y5.j",
+        installOptionalHook("FileInfoFactory.old", new HookInstaller() {
+            @Override
+            public void install() {
+                hookFileInfoFactoryMethod(classLoader, "Y5.j", "Y5.h");
+            }
+        });
+        installOptionalHook("FileInfoFactory.new", new HookInstaller() {
+            @Override
+            public void install() {
+                hookFileInfoFactoryMethod(classLoader, "u7.j", "A0.d");
+            }
+        });
+        installOptionalHook("FileInfoFactory.jadxAlias", new HookInstaller() {
+            @Override
+            public void install() {
+                hookFileInfoFactoryMethod(classLoader, "u7.AbstractC2492j", "A0.d");
+            }
+        });
+    }
+
+    private static void hookFileInfoFactoryMethod(
+            final ClassLoader classLoader,
+            String factoryClass,
+            String argsPatternClass
+    ) {
+        hookExactAppMethod(
+                factoryClass,
                 classLoader,
                 "b",
                 int.class,
                 boolean.class,
-                findAppClass("Y5.h", classLoader),
-                new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) {
-                        if (!isWebDav(param.args[0])) {
-                            return;
-                        }
-                        int pattern = Integer.MIN_VALUE;
-                        try {
-                            boolean isFile = Boolean.TRUE.equals(param.args[1]);
-                            Object argsPattern = param.args[2];
-                            pattern = readFactoryPattern(argsPattern);
-                            Object result = buildWebDavFactoryResult(classLoader, isFile, argsPattern);
-                            if (result != null) {
-                                param.setResult(result);
-                                DiagnosticLogger.log("file factory handled domain=206, pattern="
-                                        + pattern + ", result=" + result.getClass().getName());
-                            }
-                        } catch (Throwable t) {
-                            DiagnosticLogger.log("file factory failed, using empty WebDAV file info, pattern=" + pattern);
-                            DiagnosticLogger.log(t);
-                            try {
-                                param.setResult(buildEmptyWebDavFileInfo(classLoader, false));
-                            } catch (Throwable fallback) {
-                                DiagnosticLogger.log("file factory emergency fallback failed");
-                                DiagnosticLogger.log(fallback);
-                            }
-                        }
+                findAppClass(argsPatternClass, classLoader),
+                createFileInfoFactoryHook(classLoader)
+        );
+    }
+
+    private static XC_MethodHook createFileInfoFactoryHook(final ClassLoader classLoader) {
+        return new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) {
+                if (!isWebDav(param.args[0])) {
+                    return;
+                }
+                int pattern = Integer.MIN_VALUE;
+                try {
+                    boolean isFile = Boolean.TRUE.equals(param.args[1]);
+                    Object argsPattern = param.args[2];
+                    pattern = readFactoryPattern(argsPattern);
+                    Object result = buildWebDavFactoryResult(classLoader, isFile, argsPattern);
+                    if (result != null) {
+                        param.setResult(result);
+                        DiagnosticLogger.log("file factory handled domain=206, pattern="
+                                + pattern + ", result=" + result.getClass().getName());
+                    }
+                } catch (Throwable t) {
+                    DiagnosticLogger.log("file factory failed, using empty WebDAV file info, pattern=" + pattern);
+                    DiagnosticLogger.log(t);
+                    try {
+                        param.setResult(buildEmptyWebDavFileInfo(classLoader, false));
+                    } catch (Throwable fallback) {
+                        DiagnosticLogger.log("file factory emergency fallback failed");
+                        DiagnosticLogger.log(fallback);
                     }
                 }
-        );
+            }
+        };
     }
 
     private static Object buildWebDavFactoryResult(
@@ -756,7 +1119,7 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
                 return buildWebDavChildFileInfo(classLoader, isFile, args);
             case 2008:
                 if (shouldCreateNetworkServerPlaceholder(args)) {
-                    Object server = XposedHelpers.newInstance(findAppClass("V5.F", classLoader), DOMAIN_WEBDAV);
+                    Object server = newServerInfo(classLoader);
                     setServerIdByProbe(server, -1L);
                     return server;
                 }
@@ -793,27 +1156,114 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
     }
 
     private static Object buildWebDavFileInfoForPath(ClassLoader classLoader, String fullPath, boolean isFile) {
-        Object info = XposedHelpers.newInstance(findAppClass("V5.E", classLoader), fullPath == null ? "" : fullPath);
+        String path = fullPath == null ? "" : fullPath;
+        Object info = newFileInfo(classLoader, path);
         setDomainTypeByMethodOrProbe(info, DOMAIN_WEBDAV);
+        setFilePath(info, path);
+        setFileUniqueId(info, path);
+        String name = WebDavClient.nameOf(path);
+        if (!isEmpty(name)) {
+            setFileName(info, name);
+        }
         long serverId = parseWebDavServerId(fullPath);
         if (serverId != Long.MIN_VALUE) {
             setServerIdByProbe(info, serverId);
         }
-        XposedHelpers.callMethod(info, "C0", !isFile);
+        setFileDirectory(info, !isFile);
         if (!isFile) {
-            XposedHelpers.callMethod(info, "H", 12289);
+            setFileType(info, 12289);
         }
         return info;
     }
 
     private static Object buildEmptyWebDavFileInfo(ClassLoader classLoader, boolean isDirectory) {
-        Object info = XposedHelpers.newInstance(findAppClass("V5.E", classLoader), "");
+        Object info = newFileInfo(classLoader, "");
         setDomainTypeByMethodOrProbe(info, DOMAIN_WEBDAV);
-        XposedHelpers.callMethod(info, "C0", isDirectory);
+        setFileDirectory(info, isDirectory);
         if (isDirectory) {
-            XposedHelpers.callMethod(info, "H", 12289);
+            setFileType(info, 12289);
         }
         return info;
+    }
+
+    private static Object newFileInfo(ClassLoader classLoader, String fullPath) {
+        return XposedHelpers.newInstance(
+                findAppClass("V5.E", classLoader),
+                fullPath == null ? "" : fullPath
+        );
+    }
+
+    private static Object newServerInfo(ClassLoader classLoader) {
+        return XposedHelpers.newInstance(findAppClass("V5.F", classLoader), DOMAIN_WEBDAV);
+    }
+
+    private static void setFilePath(Object info, String path) {
+        if (tryCallMethod(info, "f", path) || tryCallMethod(info, "g", path)) {
+            return;
+        }
+        setStringFieldReturnedByMethod(info, "j", path);
+    }
+
+    private static void setFileUniqueId(Object info, String uniqueId) {
+        if (tryCallMethod(info, "w0", uniqueId) || tryCallMethod(info, "x0", uniqueId)) {
+            return;
+        }
+        setStringFieldReturnedByMethod(info, "getUniqueId", uniqueId);
+    }
+
+    private static void setFileName(Object info, String name) {
+        if (tryCallMethod(info, "k0", name) || tryCallMethod(info, "p0", name)) {
+            return;
+        }
+        setStringFieldReturnedByMethod(info, "getName", name);
+    }
+
+    private static void setFileDirectory(Object info, boolean isDirectory) {
+        if (tryCallMethod(info, "C0", isDirectory) || tryCallMethod(info, "E0", isDirectory)) {
+            return;
+        }
+        setFileType(info, isDirectory ? 12289 : 0);
+    }
+
+    private static void setFileMime(Object info, String mimeType) {
+        if (mimeType == null) {
+            mimeType = "application/octet-stream";
+        }
+        if (tryCallMethod(info, "m0", mimeType) || tryCallMethod(info, "q0", mimeType)) {
+            return;
+        }
+        setStringFieldReturnedByMethod(info, "O0", mimeType);
+    }
+
+    private static void setFileType(Object info, int type) {
+        tryCallMethod(info, "H", type);
+    }
+
+    private static int resolveFileType(ClassLoader classLoader, String fullPath) {
+        try {
+            Object mime = tryCallStaticMethod("D9.L", classLoader, "n", fullPath);
+            if (mime instanceof String) {
+                Object type = tryCallStaticMethod("D9.L", classLoader, "h", fullPath, mime);
+                if (type instanceof Number) {
+                    return ((Number) type).intValue();
+                }
+            }
+        } catch (Throwable ignored) {
+            // Fall through to the old media helper.
+        }
+        try {
+            Class<?> fileTypeClass = findAppClass("U7.G", classLoader);
+            Object mime = XposedHelpers.callStaticMethod(fileTypeClass, "m", fullPath);
+            if (mime instanceof String) {
+                Object type = XposedHelpers.callStaticMethod(fileTypeClass, "g", fullPath, mime);
+                if (type instanceof Number) {
+                    return ((Number) type).intValue();
+                }
+            }
+        } catch (Throwable ignored) {
+            // Unknown file types can safely fall back to the generic icon.
+        }
+        return 0;
     }
 
     private static void normalizeWebDavFactoryResult(
@@ -836,7 +1286,7 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
             setServerIdByProbe(result, serverId);
         }
         if (!isFile) {
-            tryCallMethod(result, "H", 12289);
+            setFileType(result, 12289);
         }
     }
 
@@ -1070,10 +1520,10 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
     }
 
     private static void hookRequestWrapper(final ClassLoader classLoader) {
-        installOptionalHook("RequestWrapper.serverCount", new HookInstaller() {
+        installOptionalHook("RequestWrapper.legacy.serverCount", new HookInstaller() {
             @Override
-            public void install() {
-                hookAppMethod(
+            public void install() throws Throwable {
+                hookExactAppMethod(
                         "y8.f",
                         classLoader,
                         "e",
@@ -1081,7 +1531,7 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
                         int.class,
                         int.class,
                         Bundle.class,
-                        findAppClass("J6.c", classLoader),
+                        findExactAppClass("J6.c", classLoader),
                         new XC_MethodHook() {
                             @Override
                             protected void afterHookedMethod(MethodHookParam param) {
@@ -1092,14 +1542,75 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
             }
         });
 
-        hookAppMethod(
-                "y8.f",
+        installOptionalHook("RequestWrapper.legacy.async", new HookInstaller() {
+            @Override
+            public void install() throws Throwable {
+                hookRequestWrapperAsync(classLoader, "y8.f", findExactAppClass("y8.g", classLoader),
+                        "legacy");
+            }
+        });
+
+        installOptionalHook("RequestWrapper.legacy.sync", new HookInstaller() {
+            @Override
+            public void install() throws Throwable {
+                hookRequestWrapperSync(classLoader, "y8.f", findExactAppClass("J6.c", classLoader),
+                        "legacy");
+            }
+        });
+
+        installOptionalHook("RequestWrapper.new.serverCount", new HookInstaller() {
+            @Override
+            public void install() throws Throwable {
+                hookExactAppMethod(
+                        "ka.f",
+                        classLoader,
+                        "e",
+                        long.class,
+                        int.class,
+                        int.class,
+                        Bundle.class,
+                        findExactAppClass("A8.b", classLoader),
+                        new XC_MethodHook() {
+                            @Override
+                            protected void afterHookedMethod(MethodHookParam param) {
+                                mergeWebDavServerCount(param);
+                            }
+                        }
+                );
+            }
+        });
+
+        installOptionalHook("RequestWrapper.new.async", new HookInstaller() {
+            @Override
+            public void install() throws Throwable {
+                hookRequestWrapperAsync(classLoader, "ka.f", findExactAppClass("ka.g", classLoader),
+                        "new");
+            }
+        });
+
+        installOptionalHook("RequestWrapper.new.sync", new HookInstaller() {
+            @Override
+            public void install() throws Throwable {
+                hookRequestWrapperSync(classLoader, "ka.f", findExactAppClass("A8.b", classLoader),
+                        "new");
+            }
+        });
+    }
+
+    private static void hookRequestWrapperAsync(
+            ClassLoader classLoader,
+            String wrapperClassName,
+            Class<?> callbackClass,
+            final String source
+    ) {
+        hookExactAppMethod(
+                wrapperClassName,
                 classLoader,
                 "a",
                 int.class,
                 int.class,
                 Bundle.class,
-                findAppClass("y8.g", classLoader),
+                callbackClass,
                 new XC_MethodHook() {
                     @Override
                     protected void beforeHookedMethod(MethodHookParam param) {
@@ -1109,28 +1620,36 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
                             return;
                         }
                         if (!isWebDavRequest(param.args[0], args)) {
+                            logRequestWrapperMiss(source, "async", param.args[0], reqCode, args);
                             return;
                         }
                         args = normalizeWebDavRequestArgs(args);
                         Object callback = param.args[3];
-                        DiagnosticLogger.log("request wrapper async WebDAV domain=" + param.args[0]
-                                + ", reqCode=" + reqCode
+                        DiagnosticLogger.log("request wrapper " + source + " async WebDAV domain="
+                                + param.args[0] + ", reqCode=" + reqCode
                                 + ", args=" + describeRequestBundle(args));
                         long requestId = WebDavBackend.handleAsync(reqCode, args, callback);
                         param.setResult(requestId);
                     }
                 }
         );
+    }
 
-        hookAppMethod(
-                "y8.f",
+    private static void hookRequestWrapperSync(
+            ClassLoader classLoader,
+            String wrapperClassName,
+            Class<?> progressCallbackClass,
+            final String source
+    ) {
+        hookExactAppMethod(
+                wrapperClassName,
                 classLoader,
                 "e",
                 long.class,
                 int.class,
                 int.class,
                 Bundle.class,
-                findAppClass("J6.c", classLoader),
+                progressCallbackClass,
                 new XC_MethodHook() {
                     @Override
                     protected void beforeHookedMethod(MethodHookParam param) {
@@ -1140,16 +1659,52 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
                             return;
                         }
                         if (!isWebDavRequest(param.args[1], args)) {
+                            logRequestWrapperMiss(source, "sync", param.args[1], reqCode, args);
                             return;
                         }
                         args = normalizeWebDavRequestArgs(args);
-                        DiagnosticLogger.log("request wrapper sync WebDAV domain=" + param.args[1]
-                                + ", reqCode=" + reqCode
+                        DiagnosticLogger.log("request wrapper " + source + " sync WebDAV domain="
+                                + param.args[1] + ", reqCode=" + reqCode
                                 + ", args=" + describeRequestBundle(args));
                         param.setResult(WebDavBackend.handleSync(reqCode, args, param.args[4]));
                     }
                 }
         );
+    }
+
+    private static void logRequestWrapperMiss(
+            String source,
+            String mode,
+            Object domainValue,
+            int reqCode,
+            Bundle args
+    ) {
+        if (!shouldTraceRequestWrapperMiss(domainValue, reqCode, args)) {
+            return;
+        }
+        DiagnosticLogger.log("request wrapper " + source + " " + mode
+                + " pass-through domain=" + domainValue
+                + ", reqCode=" + reqCode
+                + ", serverId=" + readBundleServerId(args)
+                + ", args=" + describeRequestBundle(args));
+    }
+
+    private static boolean shouldTraceRequestWrapperMiss(Object domainValue, int reqCode, Bundle args) {
+        if (isWebDav(domainValue) || isWebDavOperationRequestCode(reqCode)) {
+            return true;
+        }
+        return readBundleServerId(args) > 0;
+    }
+
+    private static boolean isWebDavOperationRequestCode(int reqCode) {
+        return reqCode == 121
+                || reqCode == 122
+                || reqCode == 123
+                || reqCode == 124
+                || reqCode == 125
+                || reqCode == 126
+                || reqCode == 127
+                || reqCode == 130;
     }
 
     private static void mergeWebDavServerCount(XC_MethodHook.MethodHookParam param) {
@@ -1207,6 +1762,29 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
             }
         });
 
+        installOptionalHook("OperationFactory.map.new", new HookInstaller() {
+            @Override
+            public void install() {
+                hookAppMethod(
+                        "K7.a",
+                        classLoader,
+                        "a",
+                        findAppClass("A7.w", classLoader),
+                        new XC_MethodHook() {
+                            @Override
+                            protected void afterHookedMethod(MethodHookParam param) {
+                                Object result = param.getResult();
+                                if (result instanceof SparseArray) {
+                                    ((SparseArray) result).put(DOMAIN_WEBDAV,
+                                            newWebDavNetworkOperation(classLoader, param.args[0]));
+                                    DiagnosticLogger.log("operation map added WebDAV -> h8.C1521d");
+                                }
+                            }
+                        }
+                );
+            }
+        });
+
         installOptionalHook("OperationFactory.direct", new HookInstaller() {
             @Override
             public void install() {
@@ -1217,6 +1795,28 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
                         Context.class,
                         int.class,
                         findAppClass("e6.u", classLoader),
+                        new XC_MethodHook() {
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam param) {
+                                if (isWebDav(param.args[1])) {
+                                    param.setResult(newWebDavNetworkOperation(classLoader, param.args[2]));
+                                }
+                            }
+                        }
+                );
+            }
+        });
+
+        installOptionalHook("OperationFactory.direct.new", new HookInstaller() {
+            @Override
+            public void install() {
+                hookAppMethod(
+                        "Z9.c",
+                        classLoader,
+                        "a",
+                        Context.class,
+                        int.class,
+                        findAppClass("A7.w", classLoader),
                         new XC_MethodHook() {
                             @Override
                             protected void beforeHookedMethod(MethodHookParam param) {
@@ -1249,10 +1849,33 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
                 );
             }
         });
+
+        installOptionalHook("AbsFileOperator.k.new", new HookInstaller() {
+            @Override
+            public void install() {
+                hookAppMethod(
+                        "A7.AbstractC0044d",
+                        classLoader,
+                        "k",
+                        int.class,
+                        new XC_MethodHook() {
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam param) {
+                                if (isWebDav(param.args[0])) {
+                                    param.setResult(newWebDavNetworkOperation(classLoader, param.thisObject));
+                                    DiagnosticLogger.log("operation route WebDAV -> h8.C1521d");
+                                }
+                            }
+                        }
+                );
+            }
+        });
     }
 
     private static Object newWebDavNetworkOperation(ClassLoader classLoader, Object collector) {
-        return XposedHelpers.newInstance(findAppClass("J6.h", classLoader), collector);
+        Object operation = XposedHelpers.newInstance(findAppClass("J6.h", classLoader), collector);
+        DiagnosticLogger.log("operation route WebDAV -> " + operation.getClass().getName());
+        return operation;
     }
 
     private static Object newWebDavFileRepository(ClassLoader classLoader) {
@@ -1272,6 +1895,28 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
                             @Override
                             protected void beforeHookedMethod(MethodHookParam param) {
                                 if (isWebDav(param.args[0])) {
+                                    DiagnosticLogger.log("repository factory route WebDAV -> T7.N");
+                                    param.setResult(newWebDavFileRepository(classLoader));
+                                }
+                            }
+                        }
+                );
+            }
+        });
+
+        installOptionalHook("RepositoryFactory.file.WebDAV.new", new HookInstaller() {
+            @Override
+            public void install() {
+                hookAppMethod(
+                        "sc.AbstractC2295H",
+                        classLoader,
+                        "G",
+                        int.class,
+                        new XC_MethodHook() {
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam param) {
+                                if (isWebDav(param.args[0])) {
+                                    DiagnosticLogger.log("repository factory route WebDAV -> T7.N");
                                     param.setResult(newWebDavFileRepository(classLoader));
                                 }
                             }
@@ -1333,140 +1978,191 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
             }
         });
 
-        hookAppMethod(
-                "w6.I",
-                classLoader,
-                "F",
-                int.class,
-                new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) {
-                        if (!isWebDav(param.args[0])) {
-                            return;
+        installOptionalHook("NetworkServerRepository.F.WebDAV", new HookInstaller() {
+            @Override
+            public void install() {
+                hookAppMethod(
+                        "w6.I",
+                        classLoader,
+                        "F",
+                        int.class,
+                        new XC_MethodHook() {
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam param) {
+                                if (!isWebDav(param.args[0])) {
+                                    return;
+                                }
+                                try {
+                                    Context context = findContextField(param.thisObject);
+                                    WebDavBackend.init(context);
+                                } catch (Throwable ignored) {
+                                    // Application.onCreate normally initializes the store.
+                                }
+                                param.setResult(buildServerInfoList(classLoader));
+                            }
                         }
-                        try {
-                            Context context = findContextField(param.thisObject);
-                            WebDavBackend.init(context);
-                        } catch (Throwable ignored) {
-                            // Application.onCreate normally initializes the store.
-                        }
-                        param.setResult(buildServerInfoList(classLoader));
-                    }
-                }
-        );
+                );
+            }
+        });
 
-        hookAppMethod(
-                "w6.I",
-                classLoader,
-                "l",
-                findAppClass("S5.j", classLoader),
-                findAppClass("S5.h", classLoader),
-                new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) {
-                        try {
-                            Object query = param.args[0];
-                            Bundle bundle = findBundleField(query);
-                            int requestType = bundle != null ? bundle.getInt("requestServerType", -1) : -1;
-                            if (requestType != -1 && requestType != DOMAIN_WEBDAV && requestType != 202 && requestType != 205) {
-                                return;
-                            }
-                            List<?> original = (List<?>) param.getResult();
-                            ArrayList<Object> merged = new ArrayList<>();
-                            if (original != null) {
-                                merged.addAll(original);
-                            }
-                            ArrayList<Object> webDavServers = buildServerInfoList(classLoader);
-                            for (Object server : webDavServers) {
-                                if (!containsSameServer(merged, server)) {
-                                    merged.add(server);
+        installOptionalHook("NetworkServerRepository.l.WebDAV", new HookInstaller() {
+            @Override
+            public void install() {
+                hookAppMethod(
+                        "w6.I",
+                        classLoader,
+                        "l",
+                        findAppClass("S5.j", classLoader),
+                        findAppClass("S5.h", classLoader),
+                        new XC_MethodHook() {
+                            @Override
+                            protected void afterHookedMethod(MethodHookParam param) {
+                                try {
+                                    Object query = param.args[0];
+                                    Bundle bundle = findBundleField(query);
+                                    int requestType = bundle != null ? bundle.getInt("requestServerType", -1) : -1;
+                                    if (requestType != -1 && requestType != DOMAIN_WEBDAV && requestType != 202 && requestType != 205) {
+                                        return;
+                                    }
+                                    List<?> original = (List<?>) param.getResult();
+                                    ArrayList<Object> merged = new ArrayList<>();
+                                    if (original != null) {
+                                        merged.addAll(original);
+                                    }
+                                    ArrayList<Object> webDavServers = buildServerInfoList(classLoader);
+                                    for (Object server : webDavServers) {
+                                        if (!containsSameServer(merged, server)) {
+                                            merged.add(server);
+                                        }
+                                    }
+                                    param.setResult(merged);
+                                    DiagnosticLogger.log("repository list merged requestServerType=" + requestType
+                                            + ", original=" + (original != null ? original.size() : 0)
+                                            + ", webdav=" + webDavServers.size()
+                                            + ", merged=" + merged.size());
+                                } catch (Throwable t) {
+                                    XposedBridge.log("MyFilesWebDav: append WebDAV server list failed");
+                                    XposedBridge.log(t);
                                 }
                             }
-                            param.setResult(merged);
-                            DiagnosticLogger.log("repository list merged requestServerType=" + requestType
-                                    + ", original=" + (original != null ? original.size() : 0)
-                                    + ", webdav=" + webDavServers.size()
-                                    + ", merged=" + merged.size());
-                        } catch (Throwable t) {
-                            XposedBridge.log("MyFilesWebDav: append WebDAV server list failed");
-                            XposedBridge.log(t);
                         }
-                    }
-                }
-        );
+                );
+            }
+        });
 
-        hookAppMethod(
-                "w6.H",
-                classLoader,
-                "E",
-                int.class,
-                Bundle.class,
-                new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) {
-                        if (isWebDav(param.args[0])) {
-                            param.setResult(buildFileInfo(classLoader, (Bundle) param.args[1]));
-                        }
-                    }
-                }
-        );
-
-        hookAppMethod(
-                "w6.H",
-                classLoader,
-                "l",
-                findAppClass("S5.j", classLoader),
-                findAppClass("S5.h", classLoader),
-                new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) {
-                        try {
-                            Bundle query = findBundleField(param.args[0]);
-                            if (query == null || query.getInt("domainType", -1) != DOMAIN_WEBDAV) {
-                                return;
+        installOptionalHook("NetworkFileRepository.E.WebDAV", new HookInstaller() {
+            @Override
+            public void install() {
+                hookAppMethod(
+                        "w6.H",
+                        classLoader,
+                        "E",
+                        int.class,
+                        Bundle.class,
+                        new XC_MethodHook() {
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam param) {
+                                if (isWebDav(param.args[0])) {
+                                    param.setResult(buildFileInfo(classLoader, (Bundle) param.args[1]));
+                                }
                             }
-                            param.setResult(loadWebDavFileInfoList(classLoader, query));
-                        } catch (Throwable t) {
-                            DiagnosticLogger.log("file repository WebDAV list failed");
-                            DiagnosticLogger.log(t);
-                            param.setResult(new ArrayList<Object>());
                         }
-                    }
-                }
-        );
+                );
+            }
+        });
+
+        installOptionalHook("NetworkFileRepository.l.WebDAV", new HookInstaller() {
+            @Override
+            public void install() {
+                hookAppMethod(
+                        "w6.H",
+                        classLoader,
+                        "l",
+                        findAppClass("S5.j", classLoader),
+                        findAppClass("S5.h", classLoader),
+                        new XC_MethodHook() {
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam param) {
+                                try {
+                                    Bundle query = findBundleField(param.args[0]);
+                                    if (query == null || query.getInt("domainType", -1) != DOMAIN_WEBDAV) {
+                                        return;
+                                    }
+                                    param.setResult(loadWebDavFileInfoList(classLoader, query));
+                                } catch (Throwable t) {
+                                    DiagnosticLogger.log("file repository WebDAV list failed");
+                                    DiagnosticLogger.log(t);
+                                    param.setResult(new ArrayList<Object>());
+                                }
+                            }
+                        }
+                );
+            }
+        });
     }
 
     private static void hookServerClick(final ClassLoader classLoader) {
-        hookAppMethod(
-                "F7.e",
-                classLoader,
-                "z",
-                findAppClass("x7.C2094a", classLoader),
-                new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) {
-                        try {
-                            Object clickInfo = param.args[0];
-                            Object serverInfo = getFieldValue(clickInfo, "f24160a");
-                            int domainType = readDomainType(serverInfo);
-                            long serverId = readServerIdSafe(serverInfo);
-                            DiagnosticLogger.log("server click seen domain=" + domainType
-                                    + ", id=" + serverId
-                                    + ", class=" + (serverInfo != null
-                                    ? serverInfo.getClass().getName() : "null"));
-                            if (domainType != DOMAIN_WEBDAV) {
-                                return;
+        installOptionalHook("ServerClick.old", new HookInstaller() {
+            @Override
+            public void install() {
+                hookAppMethod(
+                        "F7.e",
+                        classLoader,
+                        "z",
+                        findAppClass("x7.C2094a", classLoader),
+                        new XC_MethodHook() {
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam param) {
+                                handleServerClick(classLoader, param, "f24160a");
                             }
-                            if (openWebDavServerPage(classLoader, param.thisObject, serverInfo)) {
-                                param.setResult(true);
-                            }
-                        } catch (Throwable t) {
-                            DiagnosticLogger.log("server click WebDAV open failed");
-                            DiagnosticLogger.log(t);
                         }
-                    }
-                }
-        );
+                );
+            }
+        });
+
+        installOptionalHook("ServerClick.new", new HookInstaller() {
+            @Override
+            public void install() {
+                hookExactAppMethod(
+                        "d9.e",
+                        classLoader,
+                        "x",
+                        findAppClass("V8.a", classLoader),
+                        new XC_MethodHook() {
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam param) {
+                                handleServerClick(classLoader, param, "f9866a");
+                            }
+                        }
+                );
+            }
+        });
+    }
+
+    private static void handleServerClick(
+            ClassLoader classLoader,
+            XC_MethodHook.MethodHookParam param,
+            String serverFieldName
+    ) {
+        try {
+            Object clickInfo = param.args[0];
+            Object serverInfo = getFieldValue(clickInfo, serverFieldName);
+            int domainType = readDomainType(serverInfo);
+            long serverId = readServerIdSafe(serverInfo);
+            DiagnosticLogger.log("server click seen domain=" + domainType
+                    + ", id=" + serverId
+                    + ", class=" + (serverInfo != null
+                    ? serverInfo.getClass().getName() : "null"));
+            if (domainType != DOMAIN_WEBDAV) {
+                return;
+            }
+            if (openWebDavServerPage(classLoader, param.thisObject, serverInfo)) {
+                param.setResult(true);
+            }
+        } catch (Throwable t) {
+            DiagnosticLogger.log("server click WebDAV open failed");
+            DiagnosticLogger.log(t);
+        }
     }
 
     private static ArrayList<Object> loadWebDavFileInfoList(ClassLoader classLoader, Bundle query) {
@@ -1534,10 +2230,10 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
         }
 
         int instanceId = readControllerInstanceId(controller);
-        Object currentPageInfo = getFieldValueOrNull(controller, "f23389p");
+        Object currentPageInfo = getCurrentPageInfo(controller);
         Object pageInfo = XposedHelpers.newInstance(findAppClass("q8.C1747e", classLoader));
         Object pageType = getFtpPageType(classLoader);
-        XposedHelpers.callMethod(pageInfo, "N", pageType);
+        setPageInfoPageType(pageInfo, pageType);
 
         String name = serverBundle.getString(WebDavBackend.KEY_SERVER_NAME, "");
         String address = serverBundle.getString(WebDavBackend.KEY_SERVER_ADDRESS, "");
@@ -1546,22 +2242,26 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
         }
         String rootPath = buildWebDavServerPath(serverId);
 
-        XposedHelpers.callMethod(pageInfo, "H", WebDavBackend.KEY_SERVER_NAME, name);
-        XposedHelpers.callMethod(pageInfo, "H", WebDavBackend.KEY_SERVER_ADDRESS, address);
-        XposedHelpers.callMethod(pageInfo, "H", WebDavBackend.KEY_SHARED_FOLDER,
+        putPageInfoString(pageInfo, WebDavBackend.KEY_SERVER_NAME, name);
+        putPageInfoString(pageInfo, WebDavBackend.KEY_SERVER_ADDRESS, address);
+        putPageInfoString(pageInfo, WebDavBackend.KEY_SHARED_FOLDER,
                 serverBundle.getString(WebDavBackend.KEY_SHARED_FOLDER, ""));
-        XposedHelpers.callMethod(pageInfo, "D",
+        putPageInfoInt(pageInfo,
                 serverBundle.getInt(WebDavBackend.KEY_SERVER_PORT, 443),
                 WebDavBackend.KEY_SERVER_PORT);
-        XposedHelpers.callMethod(pageInfo, "F", WebDavBackend.KEY_SERVER_ID, serverId);
-        XposedHelpers.callMethod(pageInfo, "I", WebDavBackend.KEY_IS_ANONYMOUS_MODE,
+        putPageInfoLong(pageInfo, WebDavBackend.KEY_SERVER_ID, serverId);
+        putPageInfoBoolean(pageInfo, WebDavBackend.KEY_IS_ANONYMOUS_MODE,
                 serverBundle.getBoolean(WebDavBackend.KEY_IS_ANONYMOUS_MODE, false));
-        XposedHelpers.callMethod(pageInfo, "O", rootPath);
-        XposedHelpers.callMethod(pageInfo, "K", DOMAIN_WEBDAV);
+        setPageInfoPath(pageInfo, rootPath);
+        setPageInfoDomain(pageInfo, DOMAIN_WEBDAV);
         setFieldValueIfPresent(pageInfo, "f21254k", true);
         setFieldValueIfPresent(pageInfo, "f21261x", instanceId);
         copyNavigationMode(currentPageInfo, pageInfo);
         setNextDepth(currentPageInfo, pageInfo);
+
+        if (openWebDavServerPageByPageManager(classLoader, instanceId, pageInfo, serverId, rootPath)) {
+            return true;
+        }
 
         Object fragment = XposedHelpers.callStaticMethod(findAppClass("D5.b", classLoader), "C", instanceId);
         Object fragmentActivity = XposedHelpers.callMethod(fragment, "c");
@@ -1569,6 +2269,103 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
         XposedHelpers.callMethod(navigator, "d", fragmentActivity, pageInfo);
         DiagnosticLogger.log("server click opened WebDAV page id=" + serverId + ", path=" + rootPath);
         return true;
+    }
+
+    private static boolean openWebDavServerPageByPageManager(
+            ClassLoader classLoader,
+            int instanceId,
+            Object pageInfo,
+            long serverId,
+            String rootPath
+    ) {
+        try {
+            Object activityHolder = callStaticIntMethodExact(
+                    "a.AbstractC0577a",
+                    classLoader,
+                    "Y",
+                    instanceId
+            );
+            Object fragmentActivity = XposedHelpers.callMethod(activityHolder, "d");
+            Object pageManager = callStaticIntMethodExact("Eb.c", classLoader, "v", instanceId);
+            XposedHelpers.callMethod(pageManager, "d", fragmentActivity, pageInfo);
+            DiagnosticLogger.log("server click opened WebDAV page via PageManager id="
+                    + serverId + ", path=" + rootPath);
+            return true;
+        } catch (Throwable t) {
+            DiagnosticLogger.log("server click PageManager open skipped");
+            DiagnosticLogger.log(t);
+            return false;
+        }
+    }
+
+    private static Object callStaticIntMethodExact(
+            String className,
+            ClassLoader classLoader,
+            String methodName,
+            int arg
+    ) throws Throwable {
+        Class<?> clazz = findAppClass(className, classLoader);
+        Method method = clazz.getDeclaredMethod(methodName, int.class);
+        method.setAccessible(true);
+        return method.invoke(null, arg);
+    }
+
+    private static void setPageInfoPageType(Object pageInfo, Object pageType) {
+        if (pageInfo == null || pageType == null) {
+            return;
+        }
+        if (tryCallMethod(pageInfo, "Q", pageType)) {
+            return;
+        }
+        tryCallMethod(pageInfo, "N", pageType);
+    }
+
+    private static void putPageInfoString(Object pageInfo, String key, String value) {
+        if (value == null) {
+            value = "";
+        }
+        if (tryCallMethod(pageInfo, "H", key, value)) {
+            return;
+        }
+        tryCallMethod(pageInfo, "J", key, value);
+    }
+
+    private static void putPageInfoInt(Object pageInfo, int value, String key) {
+        if (tryCallMethod(pageInfo, "D", value, key)) {
+            return;
+        }
+        tryCallMethod(pageInfo, "G", value, key);
+    }
+
+    private static void putPageInfoLong(Object pageInfo, String key, long value) {
+        if (tryCallMethod(pageInfo, "F", key, value)) {
+            return;
+        }
+        tryCallMethod(pageInfo, "H", value, key);
+    }
+
+    private static void putPageInfoBoolean(Object pageInfo, String key, boolean value) {
+        if (tryCallMethod(pageInfo, "I", key, value)) {
+            return;
+        }
+        tryCallMethod(pageInfo, "K", key, value);
+    }
+
+    private static void setPageInfoPath(Object pageInfo, String path) {
+        if (path == null) {
+            path = "";
+        }
+        if (tryCallMethod(pageInfo, "O", path)) {
+            return;
+        }
+        tryCallMethod(pageInfo, "R", path);
+    }
+
+    private static void setPageInfoDomain(Object pageInfo, int domainType) {
+        if (tryCallMethod(pageInfo, "K", domainType)) {
+            return;
+        }
+        tryCallMethod(pageInfo, "M", domainType);
     }
 
     private static void hookListAdapters(final ClassLoader classLoader) {
@@ -1641,9 +2438,8 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
     private static ArrayList<Object> buildServerInfoList(ClassLoader classLoader) {
         ArrayList<Object> result = new ArrayList<>();
         ArrayList<Bundle> serverBundles = WebDavBackend.getServerBundles();
-        Class<?> serverInfoClass = findAppClass("V5.F", classLoader);
         for (Bundle bundle : serverBundles) {
-            Object info = XposedHelpers.newInstance(serverInfoClass, DOMAIN_WEBDAV);
+            Object info = newServerInfo(classLoader);
             populateServerInfo(info, bundle);
             result.add(info);
         }
@@ -1651,15 +2447,14 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
     }
 
     private static Object buildVirtualFolderInfo(ClassLoader classLoader, String path, String name) {
-        Class<?> fileInfoClass = findAppClass("V5.E", classLoader);
-        Object info = XposedHelpers.newInstance(fileInfoClass, path);
+        Object info = newFileInfo(classLoader, path);
         setDomainTypeByMethodOrProbe(info, DOMAIN_WEBDAV);
         setServerIdByProbe(info, -1L);
-        XposedHelpers.callMethod(info, "w0", path);
-        XposedHelpers.callMethod(info, "C0", true);
-        XposedHelpers.callMethod(info, "H", 12289);
-        tryCallMethod(info, "k0", name);
-        setStringFieldReturnedByMethod(info, "getName", name);
+        setFilePath(info, path);
+        setFileUniqueId(info, path);
+        setFileDirectory(info, true);
+        setFileType(info, 12289);
+        setFileName(info, name);
         return info;
     }
 
@@ -1674,7 +2469,7 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
         }
 
         long serverId = parseWebDavServerId(normalized);
-        if (serverId > 0) {
+        if (serverId > 0 && Looper.myLooper() != Looper.getMainLooper()) {
             try {
                 Bundle args = new Bundle();
                 args.putLong(WebDavBackend.KEY_SERVER_ID, serverId);
@@ -1705,14 +2500,16 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
         String path = buildWebDavServerPath(serverId);
 
         populateServerInfoFieldsByLayout(info, bundle, serverId, address, displayName);
+        populateServerInfoFieldsByName(info, bundle, serverId, address, displayName);
         setServerIdByProbe(info, serverId);
         setDomainTypeByMethodOrProbe(info, DOMAIN_WEBDAV);
 
-        XposedHelpers.callMethod(info, "f", path);
-        XposedHelpers.callMethod(info, "w0", path);
+        setFilePath(info, path);
+        setFileUniqueId(info, path);
+        setFileName(info, displayName);
         tryCallMethod(info, "M", bundle.getLong(WebDavBackend.KEY_SERVER_ADDED_TIME, 0L));
-        XposedHelpers.callMethod(info, "C0", true);
-        XposedHelpers.callMethod(info, "H", 12289);
+        setFileDirectory(info, true);
+        setFileType(info, 12289);
     }
 
     private static void populateServerInfoFieldsByLayout(
@@ -1749,6 +2546,32 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
         setStringFieldReturnedByMethod(info, "getName", displayName);
     }
 
+    private static void populateServerInfoFieldsByName(
+            Object info,
+            Bundle bundle,
+            long serverId,
+            String address,
+            String displayName
+    ) {
+        setFieldValueIfPresent(info, "f26636J", serverId);
+        setFieldValueIfPresent(info, "f26637K", bundle.getString("securityMode", "None"));
+        setFieldValueIfPresent(info, "f26638L", address);
+        setFieldValueIfPresent(info, "f26639M", bundle.getInt(WebDavBackend.KEY_SERVER_PORT, 443));
+        setFieldValueIfPresent(info, "f26640N", true);
+        setFieldValueIfPresent(info, "f26641O", true);
+        setFieldValueIfPresent(info, "f26642P", bundle.getString(WebDavBackend.KEY_ACCOUNT_NAME, ""));
+        setFieldValueIfPresent(info, "f26643Q", bundle.getString(WebDavBackend.KEY_ACCOUNT_PASSWORD, ""));
+        setFieldValueIfPresent(info, "f26644R", bundle.getString("private_key_file_path", ""));
+        setFieldValueIfPresent(info, "S", bundle.getString("passPhrase", ""));
+        setFieldValueIfPresent(info, "f26645T",
+                bundle.getBoolean(WebDavBackend.KEY_IS_ANONYMOUS_MODE, false));
+        setFieldValueIfPresent(info, "f26646U", bundle.getString(WebDavBackend.KEY_ENCODING_TYPE, "UTF-8"));
+        setFieldValueIfPresent(info, "f26647V", displayName);
+        setFieldValueIfPresent(info, "f26648W", bundle.getString(WebDavBackend.KEY_SHARED_FOLDER, ""));
+        setFieldValueIfPresent(info, "f26649X",
+                bundle.getLong(WebDavBackend.KEY_SERVER_ADDED_TIME, 0L));
+    }
+
     static void notifyServerListChanged() {
         ClassLoader classLoader = targetClassLoader;
         if (classLoader == null) {
@@ -1783,7 +2606,6 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
     }
 
     private static Object buildFileInfo(ClassLoader classLoader, Bundle bundle) {
-        Class<?> fileInfoClass = findAppClass("V5.E", classLoader);
         long serverId = bundle.getLong(WebDavBackend.KEY_SERVER_ID, -1L);
         String relativePath = bundle.getString(WebDavBackend.KEY_FILE_PATH, "/");
         String fullPath = trimTrailingPathSlash(attachWebDavServerPath(relativePath, serverId));
@@ -1791,30 +2613,23 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
         if (isEmpty(displayName)) {
             displayName = WebDavClient.nameOf(relativePath);
         }
-        Object info = XposedHelpers.newInstance(fileInfoClass, fullPath);
+        Object info = newFileInfo(classLoader, fullPath);
         boolean isDirectory = bundle.getBoolean(WebDavBackend.KEY_IS_DIRECTORY);
         setDomainTypeByMethodOrProbe(info, DOMAIN_WEBDAV);
         setServerIdByProbe(info, serverId);
-        XposedHelpers.callMethod(info, "w0", fullPath);
+        setFilePath(info, fullPath);
+        setFileUniqueId(info, fullPath);
         if (!isEmpty(displayName)) {
-            tryCallMethod(info, "k0", displayName);
-            setStringFieldReturnedByMethod(info, "getName", displayName);
+            setFileName(info, displayName);
         }
-        XposedHelpers.callMethod(info, "C0", isDirectory);
+        setFileDirectory(info, isDirectory);
         XposedHelpers.callMethod(info, "G", bundle.getLong(WebDavBackend.KEY_FILE_SIZE, 0L));
         XposedHelpers.callMethod(info, "M", bundle.getLong(WebDavBackend.KEY_FILE_DATE, 0L));
-        XposedHelpers.callMethod(info, "m0", bundle.getString(WebDavBackend.KEY_MIME_TYPE, "application/octet-stream"));
+        setFileMime(info, bundle.getString(WebDavBackend.KEY_MIME_TYPE, "application/octet-stream"));
         if (isDirectory) {
-            XposedHelpers.callMethod(info, "H", 12289);
+            setFileType(info, 12289);
         } else {
-            try {
-                Class<?> fileTypeClass = findAppClass("U7.G", classLoader);
-                String mime = (String) XposedHelpers.callStaticMethod(fileTypeClass, "m", fullPath);
-                int type = (Integer) XposedHelpers.callStaticMethod(fileTypeClass, "g", fullPath, mime);
-                XposedHelpers.callMethod(info, "H", type);
-            } catch (Throwable ignored) {
-                XposedHelpers.callMethod(info, "H", 0);
-            }
+            setFileType(info, resolveFileType(classLoader, fullPath));
         }
         return info;
     }
@@ -2064,9 +2879,21 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
                 return ((Number) value).intValue();
             }
         } catch (Throwable ignored) {
-            // Fall through to current page info.
+            // Fall through to the newer controller getter.
         }
-        Object pageInfo = getFieldValueOrNull(controller, "f23389p");
+        try {
+            Object value = XposedHelpers.callMethod(controller, "l");
+            if (value instanceof Number) {
+                return ((Number) value).intValue();
+            }
+        } catch (Throwable ignored) {
+            // Fall through to direct fields.
+        }
+        Object direct = getFirstFieldValue(controller, "f9111e", "f23381e");
+        if (direct instanceof Number) {
+            return ((Number) direct).intValue();
+        }
+        Object pageInfo = getCurrentPageInfo(controller);
         try {
             Object value = getFieldValue(pageInfo, "f21261x");
             if (value instanceof Number) {
@@ -2078,20 +2905,38 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
         return -1;
     }
 
+    private static Object getCurrentPageInfo(Object controller) {
+        Object pageInfo = getFieldValueOrNull(controller, "f9114p");
+        if (pageInfo != null) {
+            return pageInfo;
+        }
+        pageInfo = getFieldValueOrNull(controller, "f23389p");
+        if (pageInfo != null) {
+            return pageInfo;
+        }
+        try {
+            return XposedHelpers.callMethod(controller, "getPageInfo");
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
     private static void copyNavigationMode(Object currentPageInfo, Object targetPageInfo) {
         if (currentPageInfo == null) {
             return;
         }
         try {
             Object navigationMode = getFieldValue(currentPageInfo, "f21255n");
-            XposedHelpers.callMethod(targetPageInfo, "M", navigationMode);
+            if (!tryCallMethod(targetPageInfo, "M", navigationMode)) {
+                tryCallMethod(targetPageInfo, "P", navigationMode);
+            }
         } catch (Throwable ignored) {
             // Default navigation mode is fine.
         }
         try {
             Bundle currentExtras = (Bundle) getFieldValue(currentPageInfo, "f21256p");
             int menuType = currentExtras.getInt("menuType", -1);
-            XposedHelpers.callMethod(targetPageInfo, "D", menuType, "menuType");
+            putPageInfoInt(targetPageInfo, menuType, "menuType");
         } catch (Throwable ignored) {
             // menuType is optional.
         }
@@ -2212,25 +3057,25 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
             WebDavBackend.setCurrentManageActivity((Activity) activity);
         }
         Object controller = XposedHelpers.callMethod(activity, "getNsmController");
-        setObservableBoolean(controller, "f2254x", true);
-        setObservableBoolean(controller, "f2255y", false);
-        setObservableBoolean(controller, "f2256z", false);
-        setObservableBoolean(controller, "f2252B", false);
+        setObservableBooleanIfPresent(controller, "f2254x", true);
+        setObservableBooleanIfPresent(controller, "f2255y", false);
+        setObservableBooleanIfPresent(controller, "f2256z", false);
+        setObservableBooleanIfPresent(controller, "f2252B", false);
         Object binding = XposedHelpers.callMethod(activity, "getBinding");
         setPortTextIfNeeded(binding, "443");
-        XposedHelpers.callMethod(binding, "v0", controller);
+        if (!tryCallMethod(binding, "v0", controller)) {
+            tryCallMethod(binding, "o0", controller);
+        }
         XposedBridge.log("MyFilesWebDav: WebDAV manage UI configured");
     }
 
     private static void setPortTextIfNeeded(Object binding, String port) {
         try {
-            Object portRow = XposedHelpers.getObjectField(binding, "f8456J");
-            Object editText = XposedHelpers.getObjectField(portRow, "f8436D");
-            Object current = XposedHelpers.callMethod(editText, "getText");
-            String value = String.valueOf(current);
-            if (isEmpty(value) || "21".equals(value) || "445".equals(value)) {
-                XposedHelpers.callMethod(editText, "setText", port);
+            if (setRowEditTextIfEmpty(binding, "f8456J", "f8436D", port, "21", "445")
+                    || setRowEditTextIfEmpty(binding, "f27868K", "f27817D", port, "21", "445")) {
+                return;
             }
+            DiagnosticLogger.log("set WebDAV default port skipped, port row not found");
         } catch (Throwable t) {
             XposedBridge.log("MyFilesWebDav: set WebDAV default port failed");
             XposedBridge.log(t);
@@ -2241,13 +3086,16 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
         try {
             String address = null;
             String shared = null;
-            Object serverInfo = XposedHelpers.getObjectField(pageInfo, "t");
+            Object serverInfo = getFieldValueOrNull(pageInfo, "t");
+            if (serverInfo == null) {
+                serverInfo = getFieldValueOrNull(pageInfo, "f12720t");
+            }
             if (serverInfo != null) {
-                address = (String) XposedHelpers.getObjectField(serverInfo, "f7353J");
-                shared = (String) XposedHelpers.getObjectField(serverInfo, "f7363U");
+                address = readStringFieldIfPresent(serverInfo, "f7353J", "f26638L");
+                shared = readStringFieldIfPresent(serverInfo, "f7363U", "f26648W");
             }
             if (isEmpty(address)) {
-                Bundle bundle = (Bundle) XposedHelpers.getObjectField(pageInfo, "f21256p");
+                Bundle bundle = (Bundle) getFirstFieldValue(pageInfo, "f21256p", "f12717p");
                 address = bundle.getString(WebDavBackend.KEY_SERVER_ADDRESS);
                 shared = bundle.getString(WebDavBackend.KEY_SHARED_FOLDER);
             }
@@ -2258,13 +3106,79 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
             if (!isEmpty(shared)) {
                 text = address.endsWith("/") ? address + shared : address + "/" + shared;
             }
-            Object addressRow = XposedHelpers.getObjectField(binding, "f8448B");
-            Object editText = XposedHelpers.getObjectField(addressRow, "f8436D");
-            XposedHelpers.callMethod(editText, "setText", text);
+            if (!setRowEditText(binding, "f8448B", "f8436D", text)
+                    && !setRowEditText(binding, "f27859B", "f27817D", text)) {
+                DiagnosticLogger.log("restore edit address skipped, address row not found");
+            }
         } catch (Throwable t) {
             XposedBridge.log("MyFilesWebDav: restore edit address failed");
             XposedBridge.log(t);
         }
+    }
+
+    private static boolean setRowEditTextIfEmpty(
+            Object binding,
+            String rowFieldName,
+            String editFieldName,
+            String text,
+            String defaultValue1,
+            String defaultValue2
+    ) {
+        Object editText = findRowEditText(binding, rowFieldName, editFieldName);
+        if (editText == null) {
+            return false;
+        }
+        Object current = XposedHelpers.callMethod(editText, "getText");
+        String value = String.valueOf(current);
+        if (isEmpty(value) || defaultValue1.equals(value) || defaultValue2.equals(value)) {
+            XposedHelpers.callMethod(editText, "setText", text);
+        }
+        return true;
+    }
+
+    private static boolean setRowEditText(
+            Object binding,
+            String rowFieldName,
+            String editFieldName,
+            String text
+    ) {
+        Object editText = findRowEditText(binding, rowFieldName, editFieldName);
+        if (editText == null) {
+            return false;
+        }
+        XposedHelpers.callMethod(editText, "setText", text);
+        return true;
+    }
+
+    private static Object findRowEditText(Object binding, String rowFieldName, String editFieldName) {
+        try {
+            Object row = getFieldValue(binding, rowFieldName);
+            return getFieldValue(row, editFieldName);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static String readStringFieldIfPresent(Object object, String... fieldNames) {
+        Object value = getFirstFieldValue(object, fieldNames);
+        return value instanceof String ? (String) value : null;
+    }
+
+    private static Object getFirstFieldValue(Object object, String... fieldNames) {
+        if (object == null || fieldNames == null) {
+            return null;
+        }
+        for (String fieldName : fieldNames) {
+            try {
+                Object value = getFieldValue(object, fieldName);
+                if (value != null) {
+                    return value;
+                }
+            } catch (Throwable ignored) {
+                // Try the next known field.
+            }
+        }
+        return null;
     }
 
     private static void setObservableBoolean(Object owner, String fieldName, boolean value) {
@@ -2272,8 +3186,46 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
         XposedHelpers.callMethod(observable, "P", value);
     }
 
+    private static boolean setObservableBooleanIfPresent(Object owner, String fieldName, boolean value) {
+        try {
+            setObservableBoolean(owner, fieldName, value);
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     private static Object getFtpPageType(ClassLoader classLoader) {
+        Object pageType = tryCallStaticMethod("ha.AbstractC1537i", classLoader, "G", 202);
+        if (pageType != null) {
+            return pageType;
+        }
+        pageType = tryCallStaticMethod("w8.AbstractC2015g", classLoader, "E", 202);
+        if (pageType != null) {
+            return pageType;
+        }
+        pageType = getEnumFieldIfPresent(classLoader, "f12765U");
+        if (pageType != null) {
+            return pageType;
+        }
         return getEnumField(classLoader, "f21300S");
+    }
+
+    private static Object getNetworkStoragePageVariant(ClassLoader classLoader, boolean editMode) {
+        Object pageType = tryCallStaticMethod("ha.AbstractC1537i", classLoader, "H", 202, editMode);
+        if (pageType != null) {
+            return pageType;
+        }
+        pageType = tryCallStaticMethod("w8.AbstractC2015g", classLoader, "F", 202, editMode);
+        if (pageType != null) {
+            return pageType;
+        }
+        String oldField = editMode ? "f21296Q" : "f21292O";
+        pageType = getEnumFieldIfPresent(classLoader, oldField);
+        if (pageType != null) {
+            return pageType;
+        }
+        return getFtpPageType(classLoader);
     }
 
     private static Object getEnumField(ClassLoader classLoader, String fieldName) {
@@ -2281,29 +3233,116 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
         return getStaticFieldValue(pageTypeClass, fieldName);
     }
 
+    private static Object getEnumFieldIfPresent(ClassLoader classLoader, String fieldName) {
+        try {
+            return getEnumField(classLoader, fieldName);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static Object tryCallStaticMethod(
+            String className,
+            ClassLoader classLoader,
+            String methodName,
+            Object... args
+    ) {
+        try {
+            return XposedHelpers.callStaticMethod(findAppClass(className, classLoader), methodName, args);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static void ensureDialogResultHasWebDav(
+            Object dialogFragment,
+            ClassLoader classLoader,
+            String source
+    ) {
+        try {
+            if (dialogFragment != null && ensureWebDavListItem(dialogFragment, classLoader)) {
+                DiagnosticLogger.log("add dialog " + source + " ensured WebDAV");
+            }
+        } catch (Throwable t) {
+            DiagnosticLogger.log("add dialog " + source + " ensure failed");
+            DiagnosticLogger.log(t);
+        }
+    }
+
     private static boolean ensureWebDavListItem(Object dialogFragment, ClassLoader classLoader) {
         ArrayList<?> listItems =
                 (ArrayList<?>) XposedHelpers.getObjectField(dialogFragment, "listItems");
-        if (containsDomain(listItems, DOMAIN_WEBDAV)) {
-            return true;
-        }
         if (listItems == null) {
             return false;
         }
 
+        @SuppressWarnings("unchecked")
+        ArrayList<Object> writableList = (ArrayList<Object>) listItems;
+        int existingIndex = findDomainIndex(listItems, DOMAIN_WEBDAV);
+        if (existingIndex >= 0) {
+            Object item = writableList.get(existingIndex);
+            forceWebDavDisplayName(item);
+            if (existingIndex != writableList.size() - 1) {
+                writableList.remove(existingIndex);
+                writableList.add(item);
+                DiagnosticLogger.log("add dialog WebDAV item moved to end, count=" + writableList.size());
+            }
+            return true;
+        }
+
         Class<?> serverTypeClass = findAppClass(SERVER_TYPE_CLASS, classLoader);
-        Object label = findFtpServerLabel(classLoader);
+        Object label = findFtpServerLabel(serverTypeClass, classLoader);
         if (label == null) {
-            XposedBridge.log("MyFilesWebDav: FTP label enum not found");
+            DiagnosticLogger.log("FTP label enum not found");
             return false;
         }
         Object webDavItem = XposedHelpers.newInstance(serverTypeClass, DOMAIN_WEBDAV, label);
+        forceWebDavDisplayName(webDavItem);
 
-        @SuppressWarnings("unchecked")
-        ArrayList<Object> writableList = (ArrayList<Object>) listItems;
         writableList.add(webDavItem);
-        XposedBridge.log("MyFilesWebDav: WebDAV item ensured");
+        DiagnosticLogger.log("add dialog WebDAV item added, count=" + writableList.size());
         return true;
+    }
+
+    private static int findDomainIndex(ArrayList<?> listItems, int domainType) {
+        if (listItems == null) {
+            return -1;
+        }
+        for (int i = 0; i < listItems.size(); i++) {
+            Object item = listItems.get(i);
+            try {
+                if (readDomainType(item) == domainType) {
+                    return i;
+                }
+            } catch (Throwable ignored) {
+                // Keep scanning.
+            }
+        }
+        return -1;
+    }
+
+    private static void forceWebDavDisplayName(Object item) {
+        if (item == null) {
+            return;
+        }
+        if (setFieldValueIfPresent(item, "mDisplayName", DISPLAY_WEBDAV)) {
+            return;
+        }
+        for (Field field : allFields(item.getClass())) {
+            if (!CharSequence.class.isAssignableFrom(field.getType())) {
+                continue;
+            }
+            try {
+                field.setAccessible(true);
+                Object value = field.get(item);
+                if (value instanceof CharSequence) {
+                    field.set(item, DISPLAY_WEBDAV);
+                    return;
+                }
+            } catch (Throwable ignored) {
+                // Keep scanning possible display fields.
+            }
+        }
     }
 
     private static void replaceDialogListAdapter(Object dialogFragment, Dialog dialog) {
@@ -2317,13 +3356,24 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
         ArrayAdapter<CharSequence> adapter =
                 new ArrayAdapter<>(dialog.getContext(), android.R.layout.simple_list_item_1, items);
 
-        Object controller = XposedHelpers.getObjectField(dialog, "f17923q");
-        XposedHelpers.setObjectField(controller, "f17917y", adapter);
-        Object listView = XposedHelpers.getObjectField(controller, "f17902f");
-        if (listView instanceof ListView) {
-            ((ListView) listView).setAdapter((ListAdapter) adapter);
+        ListView listView = null;
+        try {
+            listView = dialog.findViewById(android.R.id.list);
+        } catch (Throwable ignored) {
+            // Fall through to the obfuscated AlertController field scan.
         }
-        XposedBridge.log("MyFilesWebDav: dialog adapter replaced, count=" + items.length);
+        if (listView == null) {
+            listView = findListViewField(dialog);
+        }
+        if (listView != null) {
+            listView.setAdapter((ListAdapter) adapter);
+        }
+
+        Object controller = findObjectWithListAdapterField(dialog);
+        if (controller != null) {
+            setFirstAssignableField(controller, ListAdapter.class, adapter);
+        }
+        DiagnosticLogger.log("dialog adapter replaced, count=" + items.length);
     }
 
     private static CharSequence[] labelsFromListItems(ArrayList<?> listItems) {
@@ -2344,6 +3394,94 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
             }
         }
         return labels;
+    }
+
+    private static ListView findListViewField(Object owner) {
+        if (owner == null) {
+            return null;
+        }
+        for (Field field : allFields(owner.getClass())) {
+            try {
+                field.setAccessible(true);
+                Object value = field.get(owner);
+                if (value instanceof ListView) {
+                    return (ListView) value;
+                }
+                if (value != null && value != owner) {
+                    ListView nested = findDirectListViewField(value);
+                    if (nested != null) {
+                        return nested;
+                    }
+                }
+            } catch (Throwable ignored) {
+                // Keep scanning obfuscated dialog/controller fields.
+            }
+        }
+        return null;
+    }
+
+    private static ListView findDirectListViewField(Object owner) {
+        if (owner == null) {
+            return null;
+        }
+        for (Field field : allFields(owner.getClass())) {
+            try {
+                field.setAccessible(true);
+                Object value = field.get(owner);
+                if (value instanceof ListView) {
+                    return (ListView) value;
+                }
+            } catch (Throwable ignored) {
+                // Keep scanning.
+            }
+        }
+        return null;
+    }
+
+    private static Object findObjectWithListAdapterField(Object owner) {
+        if (owner == null) {
+            return null;
+        }
+        for (Field field : allFields(owner.getClass())) {
+            try {
+                field.setAccessible(true);
+                Object value = field.get(owner);
+                if (value != null && hasAssignableField(value.getClass(), ListAdapter.class)) {
+                    return value;
+                }
+            } catch (Throwable ignored) {
+                // Keep scanning.
+            }
+        }
+        return null;
+    }
+
+    private static boolean hasAssignableField(Class<?> ownerClass, Class<?> fieldType) {
+        for (Field field : allFields(ownerClass)) {
+            if (fieldType.isAssignableFrom(field.getType())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean setFirstAssignableField(Object owner, Class<?> fieldType, Object value) {
+        if (owner == null) {
+            return false;
+        }
+        for (Field field : allFields(owner.getClass())) {
+            if (!fieldType.isAssignableFrom(field.getType())) {
+                continue;
+            }
+            try {
+                field.setAccessible(true);
+                field.set(owner, value);
+                return true;
+            } catch (Throwable ignored) {
+                // Try the next field.
+            }
+        }
+        return false;
     }
 
     private static boolean looksLikeAddNetworkStorageItems(CharSequence[] items) {
@@ -2407,31 +3545,76 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
     private static Object findFtpServerLabel(ClassLoader classLoader) {
         try {
             Class<?> labelEnumClass = findAppClass(LABEL_ENUM_CLASS, classLoader);
-            Object valuesObject = XposedHelpers.callStaticMethod(labelEnumClass, "values");
-            if (!(valuesObject instanceof Object[])) {
-                return null;
-            }
-
-            Object fallback = null;
-            Object[] values = (Object[]) valuesObject;
-            for (Object value : values) {
-                if (value == null) {
-                    continue;
-                }
-                if (fallback == null) {
-                    fallback = value;
-                }
-                String text = objectStringPayload(value).toLowerCase();
-                if (text.contains("ftp_server")) {
-                    return value;
-                }
-            }
-            return fallback;
+            return findFtpServerLabelInClass(labelEnumClass);
         } catch (Throwable t) {
             XposedBridge.log("MyFilesWebDav: find FTP enum by reflection failed");
             XposedBridge.log(t);
             return null;
         }
+    }
+
+    private static Object findFtpServerLabel(Class<?> serverTypeClass, ClassLoader classLoader) {
+        Object label = findFtpServerLabelInClass(findServerTypeLabelClass(serverTypeClass));
+        if (label != null) {
+            return label;
+        }
+        return findFtpServerLabel(classLoader);
+    }
+
+    private static Class<?> findServerTypeLabelClass(Class<?> serverTypeClass) {
+        if (serverTypeClass == null) {
+            return null;
+        }
+        Constructor<?>[] constructors = serverTypeClass.getDeclaredConstructors();
+        for (int i = 0; i < constructors.length; i++) {
+            Class<?>[] parameterTypes = constructors[i].getParameterTypes();
+            if (parameterTypes.length == 2
+                    && (parameterTypes[0] == int.class || parameterTypes[0] == Integer.class)) {
+                return parameterTypes[1];
+            }
+        }
+        return null;
+    }
+
+    private static Object findFtpServerLabelInClass(Class<?> labelEnumClass) {
+        if (labelEnumClass == null) {
+            return null;
+        }
+        Object direct = getStaticFieldValueIfPresent(labelEnumClass, "FTP_SERVER");
+        if (direct != null) {
+            return direct;
+        }
+        Object valuesObject = null;
+        try {
+            valuesObject = XposedHelpers.callStaticMethod(labelEnumClass, "values");
+        } catch (Throwable ignored) {
+            // Try enumConstants below.
+        }
+        Object[] values = valuesObject instanceof Object[]
+                ? (Object[]) valuesObject
+                : labelEnumClass.getEnumConstants();
+        if (values == null || values.length == 0) {
+            return null;
+        }
+
+        Object fallback = null;
+        for (int i = 0; i < values.length; i++) {
+            Object value = values[i];
+            if (value == null) {
+                continue;
+            }
+            if (fallback == null) {
+                fallback = value;
+            }
+            String text = objectStringPayload(value).toLowerCase();
+            if (value instanceof Enum) {
+                text = text + "|" + ((Enum<?>) value).name().toLowerCase();
+            }
+            if (text.contains("ftp_server")) {
+                return value;
+            }
+        }
+        return fallback;
     }
 
     private static Object findBuilderParams(Object builder) {
@@ -2574,7 +3757,7 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
             return Integer.MIN_VALUE;
         }
 
-        String[] knownFields = {"mDomainType", "domainType", "f7491B"};
+        String[] knownFields = {"mDomainType", "domainType", "f7491B", "f26830B"};
         for (String fieldName : knownFields) {
             int value = readIntFieldIfPresent(item, fieldName);
             if (value != Integer.MIN_VALUE) {
@@ -2584,6 +3767,14 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
 
         try {
             Object value = XposedHelpers.callMethod(item, "b0");
+            if (value instanceof Integer) {
+                return (Integer) value;
+            }
+        } catch (Throwable ignored) {
+            // Fall through to runtime-field scan.
+        }
+        try {
+            Object value = XposedHelpers.callMethod(item, "c0");
             if (value instanceof Integer) {
                 return (Integer) value;
             }
@@ -2680,6 +3871,14 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
             return "";
         }
         try {
+            Object value = XposedHelpers.callMethod(item, "j");
+            if (value != null) {
+                return String.valueOf(value);
+            }
+        } catch (Throwable ignored) {
+            // Fall through to the older path getter.
+        }
+        try {
             Object value = XposedHelpers.callMethod(item, "getPath");
             if (value != null) {
                 return String.valueOf(value);
@@ -2700,20 +3899,65 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
 
     private static void registerWebDavStoragePath(ClassLoader classLoader) {
         try {
-            Object value = getStaticFieldValue(findAppClass("w8.G", classLoader), "f23454e");
-            if (value instanceof SparseArray) {
-                SparseArray paths = (SparseArray) value;
-                Object old = paths.get(DOMAIN_WEBDAV);
-                if (!WEBDAV_ROOT_PATH.equals(old)) {
-                    paths.put(DOMAIN_WEBDAV, WEBDAV_ROOT_PATH);
-                }
-                DiagnosticLogger.log("storage path registered domain=" + DOMAIN_WEBDAV
-                        + ", path=" + WEBDAV_ROOT_PATH);
+            Class<?> storagePathClass = findAppClass("w8.G", classLoader);
+            if (putWebDavStoragePath(getStaticFieldValueIfPresent(storagePathClass, "f23454e"))
+                    || putWebDavStoragePath(getStaticFieldValueIfPresent(storagePathClass, "f21272g"))
+                    || putWebDavStoragePathByScanning(storagePathClass)) {
+                return;
             }
+            DiagnosticLogger.log("storage path register skipped, path map not found");
         } catch (Throwable t) {
             DiagnosticLogger.log("storage path register failed");
             DiagnosticLogger.log(t);
         }
+    }
+
+    private static boolean putWebDavStoragePath(Object value) {
+        if (!(value instanceof SparseArray)) {
+            return false;
+        }
+        SparseArray paths = (SparseArray) value;
+        Object old = paths.get(DOMAIN_WEBDAV);
+        if (!WEBDAV_ROOT_PATH.equals(old)) {
+            paths.put(DOMAIN_WEBDAV, WEBDAV_ROOT_PATH);
+        }
+        DiagnosticLogger.log("storage path registered domain=" + DOMAIN_WEBDAV
+                + ", path=" + WEBDAV_ROOT_PATH);
+        return true;
+    }
+
+    private static boolean putWebDavStoragePathByScanning(Class<?> storagePathClass) {
+        for (Field field : allFields(storagePathClass)) {
+            try {
+                if (!Modifier.isStatic(field.getModifiers())
+                        || !SparseArray.class.isAssignableFrom(field.getType())) {
+                    continue;
+                }
+                field.setAccessible(true);
+                Object value = field.get(null);
+                if (looksLikeNetworkStoragePathMap(value) && putWebDavStoragePath(value)) {
+                    DiagnosticLogger.log("storage path map found by scan field=" + field.getName());
+                    return true;
+                }
+            } catch (Throwable ignored) {
+                // Keep scanning static SparseArray fields.
+            }
+        }
+        return false;
+    }
+
+    private static boolean looksLikeNetworkStoragePathMap(Object value) {
+        if (!(value instanceof SparseArray)) {
+            return false;
+        }
+        SparseArray paths = (SparseArray) value;
+        for (int i = 0; i < paths.size(); i++) {
+            Object entry = paths.valueAt(i);
+            if (entry instanceof String && ((String) entry).startsWith(NETWORK_ROOT_PATH + "/")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isWebDavStoragePath(String path) {
@@ -2772,11 +4016,29 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
                 && readDomainTypeSafe(object) == domainType) {
             return;
         }
-        setIntFieldReturnedByMethod(object, "b0", domainType);
+        setFieldValueIfPresent(object, "f26830B", domainType);
+        setFieldValueIfPresent(object, "f7491B", domainType);
+        if (readDomainTypeSafe(object) == domainType) {
+            return;
+        }
+        if (setIntFieldReturnedByMethod(object, "b0", domainType)) {
+            return;
+        }
+        setIntFieldReturnedByMethod(object, "c0", domainType);
     }
 
     private static void setServerIdByProbe(Object object, long serverId) {
+        setFieldValueIfPresent(object, "f26632J", serverId);
+        setFieldValueIfPresent(object, "f26636J", serverId);
+        setFieldValueIfPresent(object, "f7351H", serverId);
+        setFieldValueIfPresent(object, "f7350H", serverId);
+        if (readServerIdSafe(object) == serverId) {
+            return;
+        }
         if (setLongFieldReturnedByMethod(object, "b", serverId)) {
+            return;
+        }
+        if (setLongFieldReturnedByMethod(object, "c", serverId)) {
             return;
         }
         setDeclaredFieldByTypeIndex(object, long.class, 0, serverId);
@@ -3023,6 +4285,14 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
         }
     }
 
+    private static Object getStaticFieldValueIfPresent(Class<?> type, String fieldName) {
+        try {
+            return getStaticFieldValue(type, fieldName);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
     private static int readIntFieldIfPresent(Object item, String fieldName) {
         try {
             Object value = getFieldValue(item, fieldName);
@@ -3097,30 +4367,30 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
     }
 
     private static long readServerIdSafe(Object item) {
-        try {
-            Object value = getFieldValue(item, "f7351H");
-            if (value instanceof Long) {
-                return (Long) value;
+        String[] knownFields = {"f26636J", "f26632J", "f7351H", "f7350H"};
+        for (String fieldName : knownFields) {
+            try {
+                Object value = getFieldValue(item, fieldName);
+                if (value instanceof Long) {
+                    return (Long) value;
+                }
+                if (value instanceof Number) {
+                    return ((Number) value).longValue();
+                }
+            } catch (Throwable ignored) {
+                // Try the next known field.
             }
-            if (value instanceof Number) {
-                return ((Number) value).longValue();
-            }
-        } catch (Throwable ignored) {
-            // Fall through to file-item server id.
-        }
-        try {
-            Object value = getFieldValue(item, "f7350H");
-            if (value instanceof Long) {
-                return (Long) value;
-            }
-            if (value instanceof Number) {
-                return ((Number) value).longValue();
-            }
-        } catch (Throwable ignored) {
-            // No server id on this object.
         }
         try {
             Object value = XposedHelpers.callMethod(item, "b");
+            if (value instanceof Number) {
+                return ((Number) value).longValue();
+            }
+        } catch (Throwable ignored) {
+            // Fall through to the newer network-server interface.
+        }
+        try {
+            Object value = XposedHelpers.callMethod(item, "c");
             if (value instanceof Number) {
                 return ((Number) value).longValue();
             }

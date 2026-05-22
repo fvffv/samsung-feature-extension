@@ -17,9 +17,11 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
+import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.Switch;
 import android.widget.TextView;
 
 import org.json.JSONObject;
@@ -51,6 +53,12 @@ public final class SettingsActivity extends Activity {
                     "com.samsung.android.app.galaxyraw"
             ),
             new FeatureItem(
+                    "三星相机专业视频增强",
+                    "解锁专业模式 4K120 HDR10+、8K 24/30/60 HDR10+ 录制，以及慢动作 UHD 240 帧录制。支持按 8K、4K、FHD 自定义视频录制码率。",
+                    CameraBitrateSettingsActivity.class,
+                    "com.sec.android.app.camera"
+            ),
+            new FeatureItem(
                     "应用分身全应用列表",
                     "把应用分身的可用列表扩展为已安装的非系统应用。",
                     null,
@@ -69,6 +77,25 @@ public final class SettingsActivity extends Activity {
                     "com.android.nfc"
             ),
             new FeatureItem(
+                    "触控高采样率",
+                    "给手指触控补发三星原生 GOS TSP 高扫描率策略，熄屏后亮屏会自动脉冲重开一次。",
+                    TouchSamplingSettingsActivity.class,
+                    "com.sec.android.sdhms"
+            ),
+            new FeatureItem(
+                    "全局旁路供电",
+                    "基于 Game Booster 的“游戏时暂停 USB PD 充电”机制，开启后全局维持 pass_through 旁路供电状态，关闭后恢复系统默认。",
+                    PassThroughChargingSettingsActivity.class,
+                    "com.sec.android.sdhms",
+                    "com.samsung.android.game.gametools"
+            ),
+            new FeatureItem(
+                    "充电显示与提示音",
+                    "自定义 SystemUI 充电通知显示内容，支持变量模板，并可设置插入和拔出充电器时的提示音。",
+                    ChargingDisplaySettingsActivity.class,
+                    "com.android.systemui"
+            ),
+            new FeatureItem(
                     "Bixby OpenAI 接入（测试版）",
                     "测试版功能：让 Bixby 能调用自定义模型输出内容，目前仍在持续调整。",
                     BixbyOpenAiSettingsActivity.class,
@@ -79,6 +106,19 @@ public final class SettingsActivity extends Activity {
                     "为每个应用单独设置桌面图标、名称和字体样式，并在 One UI 主屏幕设置中增加入口。",
                     LauncherIconCustomizerActivity.class,
                     "com.sec.android.app.launcher"
+            ),
+            new FeatureItem(
+                    "自定义指纹图标",
+                    "替换系统指纹验证位置显示的指纹图标，支持 Lottie JSON 动画或 PNG 静态图。",
+                    FingerprintStyleSettingsActivity.class,
+                    "com.samsung.android.biometrics.app.setting"
+            ),
+            FeatureItem.external(
+                    "系统字体自定义",
+                    "在三星设置的字体风格页面中添加本地字体入口，可选择并应用本地 .ttf 字体文件。目前仅支持 ttf 格式。",
+                    "com.samsung.settings.FontStyleActivity",
+                    "com.android.settings",
+                    "com.android.settings"
             )
     };
 
@@ -89,6 +129,8 @@ public final class SettingsActivity extends Activity {
     private TextView updateStatusValue;
     private TextView githubUrlValue;
     private TextView checkUpdateAction;
+    private TextView logStatusValue;
+    private Switch logSwitch;
 
     private String currentVersionName = "";
     private int currentVersionCode;
@@ -143,10 +185,7 @@ public final class SettingsActivity extends Activity {
                 if (!(itemObject instanceof FeatureItem)) {
                     return;
                 }
-                Class<?> activityClass = ((FeatureItem) itemObject).activityClass;
-                if (activityClass != null) {
-                    startActivity(new Intent(SettingsActivity.this, activityClass));
-                }
+                openFeature((FeatureItem) itemObject);
             }
         });
         root.addView(listView, new LinearLayout.LayoutParams(
@@ -159,6 +198,36 @@ public final class SettingsActivity extends Activity {
         beginLatestVersionCheck(false);
     }
 
+    private void openFeature(FeatureItem item) {
+        if (item == null) {
+            return;
+        }
+        if (item.activityClass != null) {
+            startActivity(new Intent(SettingsActivity.this, item.activityClass));
+            return;
+        }
+        if (item.launchAction == null) {
+            return;
+        }
+        try {
+            Intent intent = new Intent(item.launchAction);
+            if (item.launchPackage != null) {
+                intent.setPackage(item.launchPackage);
+            }
+            startActivity(intent);
+        } catch (Throwable first) {
+            try {
+                Intent fallback = new Intent();
+                fallback.setClassName("com.android.settings",
+                        "com.android.settings.Settings.SecFontStyleActivity");
+                startActivity(fallback);
+            } catch (Throwable ignored) {
+                showSimpleDialog("无法打开",
+                        "没有找到对应的系统设置页面，请确认系统设置应用为最新版本。");
+            }
+        }
+    }
+
     private View buildVersionHeader() {
         LinearLayout wrapper = new LinearLayout(this);
         wrapper.setOrientation(LinearLayout.VERTICAL);
@@ -168,7 +237,93 @@ public final class SettingsActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
         ));
+        LinearLayout.LayoutParams logParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        logParams.setMargins(0, dp(12), 0, 0);
+        wrapper.addView(buildLogSwitchCard(), logParams);
         return wrapper;
+    }
+
+    private View buildLogSwitchCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(18), dp(16), dp(18), dp(16));
+        card.setBackground(makeInfoCardBackground());
+
+        TextView cardTitle = new TextView(this);
+        cardTitle.setText("诊断日志");
+        cardTitle.setTextSize(18);
+        cardTitle.setTextColor(Color.rgb(20, 24, 31));
+        cardTitle.setIncludeFontPadding(false);
+        card.addView(cardTitle, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+
+        TextView cardSubtitle = new TextView(this);
+        cardSubtitle.setText("关闭后不再写入 LSPosed 日志和本地诊断文件，排查问题时再临时开启。");
+        cardSubtitle.setTextSize(13);
+        cardSubtitle.setTextColor(Color.rgb(98, 105, 117));
+        cardSubtitle.setLineSpacing(dp(2), 1.0f);
+        cardSubtitle.setPadding(0, dp(8), 0, dp(14));
+        card.addView(cardSubtitle, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        LinearLayout textColumn = new LinearLayout(this);
+        textColumn.setOrientation(LinearLayout.VERTICAL);
+
+        TextView label = new TextView(this);
+        label.setText("日志输出");
+        label.setTextColor(Color.rgb(24, 29, 36));
+        label.setTextSize(15);
+        textColumn.addView(label, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+
+        logStatusValue = new TextView(this);
+        logStatusValue.setTextSize(13);
+        logStatusValue.setPadding(0, dp(4), 0, 0);
+        textColumn.addView(logStatusValue, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+
+        row.addView(textColumn, new LinearLayout.LayoutParams(
+                0,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                1f
+        ));
+
+        logSwitch = new Switch(this);
+        logSwitch.setText("");
+        logSwitch.setChecked(LogSettingsProvider.getLocalEnabled(this));
+        updateLogStatus(logSwitch.isChecked());
+        logSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                LogSettingsProvider.setEnabled(SettingsActivity.this, isChecked);
+                updateLogStatus(isChecked);
+            }
+        });
+        row.addView(logSwitch, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+
+        card.addView(row, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+        return card;
     }
 
     private View buildVersionCard() {
@@ -297,6 +452,19 @@ public final class SettingsActivity extends Activity {
         view.setTextSize(14);
         view.setGravity(Gravity.END);
         return view;
+    }
+
+    private void updateLogStatus(boolean enabled) {
+        if (logStatusValue == null) {
+            return;
+        }
+        if (enabled) {
+            logStatusValue.setText("已开启，会输出诊断日志，可能轻微增加后台开销。");
+            logStatusValue.setTextColor(Color.rgb(22, 163, 74));
+        } else {
+            logStatusValue.setText("已关闭，推荐日常使用保持关闭。");
+            logStatusValue.setTextColor(Color.rgb(92, 99, 111));
+        }
     }
 
     private TextView makeActionButton(String text, boolean primary) {
@@ -587,7 +755,7 @@ public final class SettingsActivity extends Activity {
 
         @Override
         public boolean isEnabled(int position) {
-            return FEATURES[position].activityClass != null;
+            return FEATURES[position].isClickable();
         }
 
         @Override
@@ -662,7 +830,7 @@ public final class SettingsActivity extends Activity {
             }
 
             FeatureItem item = FEATURES[position];
-            boolean clickable = item.activityClass != null;
+            boolean clickable = item.isClickable();
             icon.setImageDrawable(resolveIcon(item.packageNames));
             name.setText(item.name);
             description.setText(item.description);
@@ -724,13 +892,31 @@ public final class SettingsActivity extends Activity {
         final String name;
         final String description;
         final Class<?> activityClass;
+        final String launchAction;
+        final String launchPackage;
         final String[] packageNames;
 
         FeatureItem(String name, String description, Class<?> activityClass, String... packageNames) {
+            this(name, description, activityClass, null, null, packageNames);
+        }
+
+        static FeatureItem external(String name, String description, String launchAction,
+                                    String launchPackage, String... packageNames) {
+            return new FeatureItem(name, description, null, launchAction, launchPackage, packageNames);
+        }
+
+        private FeatureItem(String name, String description, Class<?> activityClass,
+                            String launchAction, String launchPackage, String[] packageNames) {
             this.name = name;
             this.description = description;
             this.activityClass = activityClass;
+            this.launchAction = launchAction;
+            this.launchPackage = launchPackage;
             this.packageNames = packageNames;
+        }
+
+        boolean isClickable() {
+            return activityClass != null || launchAction != null;
         }
     }
 

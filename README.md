@@ -54,7 +54,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File ("W:\{0}\build-v50.ps1" 
 ```powershell
 $projectRoot = Resolve-Path .
 $workspaceRoot = Split-Path $projectRoot -Parent
-adb install -r (Join-Path $workspaceRoot "MyFilesWebDavPopupLsp.apk")
+adb install --user 0 -r (Join-Path $workspaceRoot "MyFilesWebDavPopupLsp.apk")
 ```
 
 ### 说明
@@ -118,7 +118,7 @@ The build script copies the final APK to the parent directory of the project:
 ```powershell
 $projectRoot = Resolve-Path .
 $workspaceRoot = Split-Path $projectRoot -Parent
-adb install -r (Join-Path $workspaceRoot "MyFilesWebDavPopupLsp.apk")
+adb install --user 0 -r (Join-Path $workspaceRoot "MyFilesWebDavPopupLsp.apk")
 ```
 
 ### Notes

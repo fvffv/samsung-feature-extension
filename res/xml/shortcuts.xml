@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="toggle_passthrough_charging"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_toggle_passthrough_short"
+        android:shortcutLongLabel="@string/shortcut_toggle_passthrough_long"
+        android:shortcutDisabledMessage="@string/shortcut_toggle_passthrough_disabled">
+        <intent
+            android:action="com.samsung.feature.extension.action.TOGGLE_PASS_THROUGH_CHARGING"
+            android:targetPackage="com.samsung.feature.extension"
+            android:targetClass="com.samsung.feature.extension.PassThroughChargingShortcutActivity" />
+    </shortcut>
+</shortcuts>

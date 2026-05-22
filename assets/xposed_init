@@ -3,5 +3,11 @@ com.samsung.feature.extension.galaxyraw200mp.GalaxyRaw200MpHook
 com.samsung.feature.extension.dualappextender.DualAppExtenderHook
 com.samsung.feature.extension.sdhmsmanager.SdhmsManagerHook
 com.samsung.feature.extension.nfcscreenofftap.NfcScreenOffTapHook
+com.samsung.feature.extension.touchsampling.TouchSamplingHook
+com.samsung.feature.extension.passthrough.PassThroughChargingHook
 com.samsung.feature.extension.BixbyOpenAiHook
 com.samsung.feature.extension.LauncherIconCustomizerHook
+com.samsung.feature.extension.camera.CameraProVideoHdr10Hook
+com.samsung.feature.extension.SettingsCustomFontHook
+com.samsung.feature.extension.fingerprint.FingerprintStyleHook
+com.samsung.feature.extension.charging.ChargingStyleHook

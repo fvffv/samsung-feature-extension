@@ -3671,6 +3671,9 @@ public final class BixbyOpenAiHook implements IXposedHookLoadPackage {
     }
 
     private static void log(String message) {
+        if (!DiagnosticLogger.isEnabled()) {
+            return;
+        }
         XposedBridge.log("BixbyOpenAi: " + message);
         try {
             DiagnosticLogger.log(message);
@@ -3680,6 +3683,9 @@ public final class BixbyOpenAiHook implements IXposedHookLoadPackage {
     }
 
     private static void log(Throwable throwable) {
+        if (!DiagnosticLogger.isEnabled()) {
+            return;
+        }
         XposedBridge.log(throwable);
         try {
             DiagnosticLogger.log(throwable);

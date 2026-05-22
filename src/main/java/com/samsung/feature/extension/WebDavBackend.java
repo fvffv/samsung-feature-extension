@@ -394,6 +394,14 @@ final class WebDavBackend {
     }
 
     private static ProgressBridge resolveUploadProgressBridge(Object callback) {
+        ProgressBridge directBridge = resolveUploadProgressBridgeFromCallbackFields(callback);
+        if (directBridge != null) {
+            ArrayList<Object> candidates = new ArrayList<>();
+            candidates.add(directBridge.sourceFileInfo);
+            logUploadProgressProbe(callback, candidates, directBridge.listener, directBridge.sourceFileInfo);
+            return directBridge;
+        }
+
         ArrayList<Object> fileInfoCandidates = new ArrayList<>();
         collectFileInfoCandidates(callback, fileInfoCandidates, 2);
         Object sourceFileInfo = chooseUploadSourceFileInfo(fileInfoCandidates);
@@ -436,6 +444,31 @@ final class WebDavBackend {
             return null;
         }
         return new ProgressBridge(listener, sourceFileInfo, method);
+    }
+
+    private static ProgressBridge resolveUploadProgressBridgeFromCallbackFields(Object callback) {
+        if (callback == null) {
+            return null;
+        }
+        try {
+            Object mode = getFieldByNames(callback, "f441d", "d");
+            if (mode instanceof Number && ((Number) mode).intValue() != 20) {
+                return null;
+            }
+            Object listener = getFieldByNames(callback, "f442e", "e");
+            Object param = getFieldByNames(callback, "f443k", "k");
+            Object sourceFileInfo = getFieldByNames(param, "f969a", "a");
+            if (listener == null || sourceFileInfo == null) {
+                return null;
+            }
+            Method method = findProgressMethod(listener.getClass(), sourceFileInfo.getClass());
+            if (method == null) {
+                return null;
+            }
+            return new ProgressBridge(listener, sourceFileInfo, method);
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     private static void logUploadProgressProbe(
@@ -615,7 +648,7 @@ final class WebDavBackend {
         if (method == null) {
             return false;
         }
-        if (requireKnownName && !"f".equals(method.getName())) {
+        if (requireKnownName && !"c".equals(method.getName()) && !"f".equals(method.getName())) {
             return false;
         }
         Class<?>[] types = method.getParameterTypes();

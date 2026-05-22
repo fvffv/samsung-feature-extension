@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $root = $scriptDir
-$out = Join-Path $root 'build/v86-release-1.1-home-index-fix'
+$out = Join-Path $root 'build/v135-touch-sampling-tsp-only'
 $resolvedRoot = (Resolve-Path $root).Path
 $workspaceDir = Split-Path -Parent $scriptDir
 
@@ -35,17 +35,19 @@ Get-ChildItem "$root/stubs" -Recurse -Filter *.java |
 & $javac -source 8 -target 8 -encoding UTF-8 -cp $androidJar -d "$out/stub-classes" "@$out/stub-sources.txt"
 & $jar cf "$out/xposed-stubs.jar" -C "$out/stub-classes" .
 
+$libJars = @(Get-ChildItem "$root/libs" -Filter *.jar -ErrorAction SilentlyContinue | ForEach-Object FullName)
 Get-ChildItem "$root/src/main/java", "$out/gen" -Recurse -Filter *.java |
     ForEach-Object FullName |
     Set-Content -Encoding ASCII "$out/sources.txt"
-$classpath = "$androidJar;$out/xposed-stubs.jar"
+$classpath = [string]::Join(';', (@($androidJar, "$out/xposed-stubs.jar") + $libJars))
 & $javac -source 8 -target 8 -encoding UTF-8 -cp $classpath -d "$out/classes" "@$out/sources.txt"
 
 Push-Location "$out/classes"
 & $jar cf "$out/classes-compat.zip" .
 Pop-Location
 
-& "$bt/d8.bat" --min-api 23 --lib $androidJar --output "$out/dex" "$out/classes-compat.zip"
+$d8Inputs = @("$out/classes-compat.zip") + $libJars
+& "$bt/d8.bat" --min-api 23 --lib $androidJar --output "$out/dex" $d8Inputs
 
 Copy-Item "$out/unsigned.apk" "$out/apk-work.apk"
 Push-Location "$out/dex"
@@ -62,15 +64,15 @@ Pop-Location
     --ks-key-alias androiddebugkey `
     --ks-pass pass:android `
     --key-pass pass:android `
-    --out "$out/SamsungFeatureExt-v1.1.apk" `
+    --out "$out/SamsungFeatureExt-v1.2.apk" `
     "$out/aligned.apk"
-& "$bt/apksigner.bat" verify --verbose --print-certs "$out/SamsungFeatureExt-v1.1.apk"
+& "$bt/apksigner.bat" verify --verbose --print-certs "$out/SamsungFeatureExt-v1.2.apk"
 
-Copy-Item -Force "$out/SamsungFeatureExt-v1.1.apk" (Join-Path $workspaceDir 'SamsungWebDavRawMergedLsp.apk')
-Copy-Item -Force "$out/SamsungFeatureExt-v1.1.apk" (Join-Path $workspaceDir 'MyFilesWebDavPopupLsp.apk')
+Copy-Item -Force "$out/SamsungFeatureExt-v1.2.apk" (Join-Path $workspaceDir 'SamsungWebDavRawMergedLsp.apk')
+Copy-Item -Force "$out/SamsungFeatureExt-v1.2.apk" (Join-Path $workspaceDir 'MyFilesWebDavPopupLsp.apk')
 
 $outputs = @(
-    "$out/SamsungFeatureExt-v1.1.apk",
+    "$out/SamsungFeatureExt-v1.2.apk",
     (Join-Path $workspaceDir 'SamsungWebDavRawMergedLsp.apk'),
     (Join-Path $workspaceDir 'MyFilesWebDavPopupLsp.apk')
 )
