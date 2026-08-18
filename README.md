@@ -17,7 +17,7 @@ Samsung / One UI 设备的 LSPosed 功能扩展模块。
   - 支持浏览目录、预览、重命名、新建文件夹、删除、上传、下载、复制和移动。
 
 - **Expert RAW 200MP RAW**
-  - 在 Galaxy Ultra 机型的 Expert RAW 中提供 200MP RAW 拍摄选项。
+  - 在 Galaxy S24 Ultra 与 S23 Ultra 机型的 Expert RAW 中提供 200MP RAW 拍摄选项。
   - 可在高分辨率模式下拍摄和保存 RAW 照片。
 
 - **音频橡皮擦**
@@ -76,7 +76,7 @@ Samsung / One UI 设备的 LSPosed 功能扩展模块。
   - Supports directory browsing, preview, rename, folder creation, delete, upload, download, copy, and move.
 
 - **Expert RAW 200MP RAW**
-  - Provides a 200MP RAW capture option in Expert RAW on Galaxy Ultra devices.
+  - Provides a 200MP RAW capture option in Expert RAW on Galaxy S24 Ultra and S23 Ultra devices.
   - Captures and saves RAW photos in high-resolution mode.
 
 - **Audio Eraser**
