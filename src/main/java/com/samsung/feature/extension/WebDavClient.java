@@ -74,7 +74,9 @@ final class WebDavClient {
             return true;
         } catch (IOException e) {
             String message = e.getMessage();
-            if (message != null && message.contains("404")) {
+            if (message != null && (message.contains("404")
+                    || message.contains("410")
+                    || message.contains("path not found"))) {
                 return false;
             }
             throw e;
@@ -94,6 +96,10 @@ final class WebDavClient {
     }
 
     InputStream get(String path) throws Exception {
+        URL url = urlFor(path);
+        if (isCleartextHttp(url)) {
+            return getOverRawSocket(url, 0);
+        }
         HttpURLConnection connection = open("GET", path);
         int code = connection.getResponseCode();
         if (code < 200 || code >= 300) {
@@ -116,6 +122,11 @@ final class WebDavClient {
     }
 
     void put(String path, InputStream input, long size, ProgressListener progressListener) throws Exception {
+        URL url = urlFor(path);
+        if (isCleartextHttp(url)) {
+            putOverRawSocket(url, input, size, progressListener);
+            return;
+        }
         HttpURLConnection connection = open("PUT", path);
         connection.setDoOutput(true);
         setRequestMethodCompat(connection, "PUT");
@@ -141,9 +152,86 @@ final class WebDavClient {
         }
     }
 
+    /**
+     * Android's cleartext policy is enforced by HttpURLConnection, but this module deliberately
+     * supports user-configured legacy WebDAV endpoints.  The DAV metadata operations already use
+     * a socket transport for the same reason.  Keep this narrow: only GET and PUT to an explicit
+     * http:// WebDAV endpoint use it; HTTPS and all existing compatibility paths stay unchanged.
+     */
+    private static boolean isCleartextHttp(URL url) {
+        return url != null && "http".equalsIgnoreCase(url.getProtocol());
+    }
+
+    private InputStream getOverRawSocket(URL url, int redirects) throws Exception {
+        DiagnosticLogger.log("RAW stream GET open, url=" + url);
+        Socket socket = null;
+        try {
+            socket = openSocket(url);
+            OutputStream output = socket.getOutputStream();
+            writeRawRequestHeaders(output, "GET", url, null, 0L, false);
+            output.flush();
+
+            BufferedInputStream input = new BufferedInputStream(socket.getInputStream());
+            RawResponseHead response = readRawResponseHead(input);
+            if (isRedirect(response.code) && redirects < 3) {
+                String location = response.header("location");
+                if (location != null && location.length() > 0) {
+                    URL nextUrl = new URL(url, location);
+                    DiagnosticLogger.log("RAW stream GET redirect " + response.code + " to " + nextUrl);
+                    closeQuietly(socket);
+                    socket = null;
+                    return getOverRawSocket(nextUrl, redirects + 1);
+                }
+            }
+            if (response.code < 200 || response.code >= 300) {
+                String error = new String(readRawResponseBody(input, response.headers), "UTF-8");
+                throw new IOException("GET failed: " + response.code + shortError(error));
+            }
+
+            InputStream responseBody = openRawResponseBody(input, response.headers);
+            Socket responseSocket = socket;
+            socket = null;
+            return new SocketClosingInputStream(responseBody, responseSocket);
+        } finally {
+            closeQuietly(socket);
+        }
+    }
+
+    private void putOverRawSocket(URL url, InputStream input, long size,
+                                  ProgressListener progressListener) throws Exception {
+        DiagnosticLogger.log("RAW stream PUT open, url=" + url + ", size=" + size);
+        Socket socket = null;
+        OutputStream output = null;
+        try {
+            socket = openSocket(url);
+            output = socket.getOutputStream();
+            boolean chunked = size < 0L;
+            writeRawRequestHeaders(output, "PUT", url, null, size, chunked);
+            if (chunked) {
+                copyChunked(input, output, progressListener);
+            } else {
+                copy(input, output, size, progressListener);
+            }
+            output.flush();
+
+            BufferedInputStream responseInput = new BufferedInputStream(socket.getInputStream());
+            RawResponseHead response = readRawResponseHead(responseInput);
+            if (response.code < 200 || response.code >= 300) {
+                String error = new String(readRawResponseBody(responseInput, response.headers), "UTF-8");
+                throw new IOException("PUT failed: " + response.code + shortError(error));
+            }
+        } finally {
+            closeQuietly(input);
+            closeQuietly(output);
+            closeQuietly(socket);
+        }
+    }
+
     void mkcol(String path) throws Exception {
         RawResponse response = rawRequest("MKCOL", path, null, null);
-        if (response.code != 201 && response.code != 200 && response.code != 405) {
+        // 405 is the normal "collection already exists / method not allowed"
+        // response and must not be reported as a successful create.
+        if (response.code != 201 && response.code != 200 && response.code != 204) {
             throw new IOException("MKCOL failed: " + response.code + shortError(response.bodyAsString()));
         }
     }
@@ -387,6 +475,17 @@ final class WebDavClient {
 
     private void writeRawRequest(OutputStream output, String method, URL url,
                                  Map<String, String> extraHeaders, byte[] body) throws Exception {
+        writeRawRequestHeaders(output, method, url, extraHeaders,
+                body != null ? body.length : 0L, false);
+        if (body != null && body.length > 0) {
+            output.write(body);
+        }
+        output.flush();
+    }
+
+    private void writeRawRequestHeaders(OutputStream output, String method, URL url,
+                                        Map<String, String> extraHeaders, long contentLength,
+                                        boolean chunked) throws Exception {
         String path = url.getFile();
         if (path == null || path.length() == 0) {
             path = "/";
@@ -410,37 +509,61 @@ final class WebDavClient {
                 }
             }
         }
-        builder.append("Content-Length: ").append(body != null ? body.length : 0).append("\r\n");
+        if (chunked) {
+            builder.append("Transfer-Encoding: chunked\r\n");
+        } else {
+            builder.append("Content-Length: ").append(Math.max(0L, contentLength)).append("\r\n");
+        }
         builder.append("\r\n");
         output.write(builder.toString().getBytes("ISO-8859-1"));
-        if (body != null && body.length > 0) {
-            output.write(body);
-        }
-        output.flush();
     }
 
     private RawResponse readRawResponse(BufferedInputStream unused, Socket socket, String url) throws Exception {
         BufferedInputStream input = new BufferedInputStream(socket.getInputStream());
+        RawResponseHead head = readRawResponseHead(input);
+        return new RawResponse(head.code, head.reason, head.headers,
+                readRawResponseBody(input, head.headers), url);
+    }
+
+    private static RawResponseHead readRawResponseHead(BufferedInputStream input) throws Exception {
         String status = readAsciiLine(input);
         if (status == null || status.length() == 0) {
             throw new IOException("Empty HTTP response");
         }
-        String[] parts = status.split(" ", 3);
-        int code = parts.length >= 2 ? Integer.parseInt(parts[1]) : 0;
-        String reason = parts.length >= 3 ? parts[2] : "";
-        Map<String, String> headers = new HashMap<>();
-        String line;
-        while ((line = readAsciiLine(input)) != null) {
-            if (line.length() == 0) {
-                break;
+        while (true) {
+            String[] parts = status.split(" ", 3);
+            int code;
+            try {
+                code = parts.length >= 2 ? Integer.parseInt(parts[1]) : 0;
+            } catch (NumberFormatException e) {
+                throw new IOException("Invalid HTTP status: " + status, e);
             }
-            int colon = line.indexOf(':');
-            if (colon > 0) {
-                headers.put(line.substring(0, colon).trim().toLowerCase(Locale.US),
-                        line.substring(colon + 1).trim());
+            String reason = parts.length >= 3 ? parts[2] : "";
+            Map<String, String> headers = new HashMap<>();
+            String line;
+            while ((line = readAsciiLine(input)) != null) {
+                if (line.length() == 0) {
+                    break;
+                }
+                int colon = line.indexOf(':');
+                if (colon > 0) {
+                    headers.put(line.substring(0, colon).trim().toLowerCase(Locale.US),
+                            line.substring(colon + 1).trim());
+                }
+            }
+            // A proxy can send interim 100 Continue before the final response. It has no body.
+            if (code < 100 || code >= 200 || code == 101) {
+                return new RawResponseHead(code, reason, headers);
+            }
+            status = readAsciiLine(input);
+            if (status == null || status.length() == 0) {
+                throw new IOException("Missing final HTTP response");
             }
         }
+    }
 
+    private static byte[] readRawResponseBody(BufferedInputStream input,
+                                              Map<String, String> headers) throws IOException {
         byte[] body;
         String transfer = headers.get("transfer-encoding");
         String length = headers.get("content-length");
@@ -452,7 +575,24 @@ final class WebDavClient {
         } else {
             body = readAll(input);
         }
-        return new RawResponse(code, reason, headers, body, url);
+        return body;
+    }
+
+    private static InputStream openRawResponseBody(BufferedInputStream input,
+                                                   Map<String, String> headers) throws IOException {
+        String transfer = headers.get("transfer-encoding");
+        if (transfer != null && transfer.toLowerCase(Locale.US).contains("chunked")) {
+            return new ChunkedInputStream(input);
+        }
+        String length = headers.get("content-length");
+        if (length != null && length.length() > 0) {
+            try {
+                return new FixedLengthInputStream(input, Long.parseLong(length));
+            } catch (NumberFormatException e) {
+                throw new IOException("Invalid HTTP Content-Length: " + length, e);
+            }
+        }
+        return input;
     }
 
     private static String hostHeader(URL url) {
@@ -541,6 +681,9 @@ final class WebDavClient {
                 continue;
             }
             Element response = (Element) node;
+            if (!hasSuccessfulDavStatus(response)) {
+                continue;
+            }
             String href = text(response, "href");
             if (href == null || href.length() == 0) {
                 continue;
@@ -568,16 +711,31 @@ final class WebDavClient {
             item.mimeType = mime;
             items.add(item);
         }
-        if (items.isEmpty()) {
-            String path = normalizePath(requestedPath);
-            Item fallback = new Item();
-            fallback.path = trimTrailingPathSlash(path);
-            fallback.name = nameOf(path);
-            fallback.directory = true;
-            fallback.mimeType = "resource/folder";
-            items.add(fallback);
-        }
         return items;
+    }
+
+    private static boolean hasSuccessfulDavStatus(Element response) {
+        NodeList statuses = response.getElementsByTagNameNS("*", "status");
+        if (statuses == null || statuses.getLength() == 0) {
+            return true;
+        }
+        for (int i = 0; i < statuses.getLength(); i++) {
+            Node statusNode = statuses.item(i);
+            String status = statusNode != null ? statusNode.getTextContent() : null;
+            if (status == null) {
+                continue;
+            }
+            String[] parts = status.trim().split("\\s+");
+            for (String part : parts) {
+                if (part.length() == 3
+                        && part.charAt(0) == '2'
+                        && Character.isDigit(part.charAt(1))
+                        && Character.isDigit(part.charAt(2))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private String hrefToRelativePath(String href) throws Exception {
@@ -756,6 +914,32 @@ final class WebDavClient {
         }
     }
 
+    private static void copyChunked(InputStream input, OutputStream output,
+                                    ProgressListener progressListener) throws IOException {
+        byte[] buffer = new byte[64 * 1024];
+        long transferred = 0L;
+        if (progressListener != null) {
+            progressListener.onProgress(0L, -1L);
+        }
+        int n;
+        while ((n = input.read(buffer)) != -1) {
+            output.write(Integer.toHexString(n).getBytes("US-ASCII"));
+            output.write('\r');
+            output.write('\n');
+            output.write(buffer, 0, n);
+            output.write('\r');
+            output.write('\n');
+            transferred += n;
+            if (progressListener != null) {
+                progressListener.onProgress(transferred, -1L);
+            }
+        }
+        output.write("0\r\n\r\n".getBytes("US-ASCII"));
+        if (progressListener != null) {
+            progressListener.onProgress(transferred, -1L);
+        }
+    }
+
     private static byte[] readAll(InputStream input) throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         copy(input, output);
@@ -912,6 +1096,182 @@ final class WebDavClient {
                 return new String(body, "UTF-8");
             } catch (Throwable ignored) {
                 return "";
+            }
+        }
+    }
+
+    private static final class RawResponseHead {
+        final int code;
+        final String reason;
+        final Map<String, String> headers;
+
+        RawResponseHead(int code, String reason, Map<String, String> headers) {
+            this.code = code;
+            this.reason = reason;
+            this.headers = headers;
+        }
+
+        String header(String name) {
+            if (name == null || headers == null) {
+                return "";
+            }
+            String value = headers.get(name.toLowerCase(Locale.US));
+            return value != null ? value : "";
+        }
+    }
+
+    private static final class FixedLengthInputStream extends InputStream {
+        private final InputStream input;
+        private long remaining;
+
+        FixedLengthInputStream(InputStream input, long length) throws IOException {
+            if (length < 0L) {
+                throw new IOException("Negative HTTP Content-Length: " + length);
+            }
+            this.input = input;
+            this.remaining = length;
+        }
+
+        @Override
+        public int read() throws IOException {
+            byte[] single = new byte[1];
+            return read(single, 0, 1) == -1 ? -1 : single[0] & 0xff;
+        }
+
+        @Override
+        public int read(byte[] buffer, int offset, int length) throws IOException {
+            if (length == 0) {
+                return 0;
+            }
+            if (remaining == 0L) {
+                return -1;
+            }
+            int read = input.read(buffer, offset, (int) Math.min((long) length, remaining));
+            if (read == -1) {
+                throw new IOException("Unexpected EOF in HTTP body");
+            }
+            remaining -= read;
+            return read;
+        }
+    }
+
+    private static final class ChunkedInputStream extends InputStream {
+        private final BufferedInputStream input;
+        private long remainingInChunk;
+        private boolean needsChunkDelimiter;
+        private boolean complete;
+
+        ChunkedInputStream(BufferedInputStream input) {
+            this.input = input;
+            this.remainingInChunk = 0L;
+        }
+
+        @Override
+        public int read() throws IOException {
+            byte[] single = new byte[1];
+            return read(single, 0, 1) == -1 ? -1 : single[0] & 0xff;
+        }
+
+        @Override
+        public int read(byte[] buffer, int offset, int length) throws IOException {
+            if (length == 0) {
+                return 0;
+            }
+            if (!ensureChunk()) {
+                return -1;
+            }
+            int read = input.read(buffer, offset, (int) Math.min((long) length, remainingInChunk));
+            if (read == -1) {
+                throw new IOException("Unexpected EOF in chunked HTTP body");
+            }
+            remainingInChunk -= read;
+            if (remainingInChunk == 0L) {
+                needsChunkDelimiter = true;
+            }
+            return read;
+        }
+
+        private boolean ensureChunk() throws IOException {
+            if (complete) {
+                return false;
+            }
+            if (remainingInChunk > 0L) {
+                return true;
+            }
+            if (needsChunkDelimiter) {
+                String delimiter = readAsciiLine(input);
+                if (delimiter == null || delimiter.length() != 0) {
+                    throw new IOException("Invalid chunk delimiter");
+                }
+                needsChunkDelimiter = false;
+            }
+            String line = readAsciiLine(input);
+            if (line == null) {
+                throw new IOException("Unexpected EOF before HTTP chunk");
+            }
+            int semicolon = line.indexOf(';');
+            String rawSize = semicolon >= 0 ? line.substring(0, semicolon) : line;
+            try {
+                remainingInChunk = Long.parseLong(rawSize.trim(), 16);
+            } catch (NumberFormatException e) {
+                throw new IOException("Invalid HTTP chunk length: " + line, e);
+            }
+            if (remainingInChunk < 0L) {
+                throw new IOException("Negative HTTP chunk length");
+            }
+            if (remainingInChunk != 0L) {
+                return true;
+            }
+            String trailer;
+            while ((trailer = readAsciiLine(input)) != null && trailer.length() > 0) {
+                // Consume optional trailer headers before reporting end of stream.
+            }
+            complete = true;
+            return false;
+        }
+    }
+
+    private static final class SocketClosingInputStream extends InputStream {
+        private final InputStream input;
+        private final Socket socket;
+        private boolean closed;
+
+        SocketClosingInputStream(InputStream input, Socket socket) {
+            this.input = input;
+            this.socket = socket;
+        }
+
+        @Override
+        public int read() throws IOException {
+            return input.read();
+        }
+
+        @Override
+        public int read(byte[] buffer, int offset, int length) throws IOException {
+            return input.read(buffer, offset, length);
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            IOException failure = null;
+            try {
+                input.close();
+            } catch (IOException e) {
+                failure = e;
+            }
+            try {
+                socket.close();
+            } catch (IOException e) {
+                if (failure == null) {
+                    failure = e;
+                }
+            }
+            if (failure != null) {
+                throw failure;
             }
         }
     }

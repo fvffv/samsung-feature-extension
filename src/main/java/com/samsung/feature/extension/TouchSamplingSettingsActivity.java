@@ -159,6 +159,7 @@ public final class TouchSamplingSettingsActivity extends Activity {
         ));
 
         setContentView(root);
+        LanguageManager.applyToActivity(this);
     }
 
     private void updateStatus(boolean enabled) {

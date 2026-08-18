@@ -6,10 +6,20 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.ColorFilter;
+import android.graphics.Paint;
+import android.graphics.PixelFormat;
+import android.graphics.Rect;
+import android.graphics.RectF;
+import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Looper;
 import android.util.SparseArray;
 import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.ListAdapter;
 import android.widget.ListView;
 
@@ -30,7 +40,7 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
     static final int DOMAIN_WEBDAV = 206;
     private static final int DOMAIN_NATIVE_NETWORK = 205;
 
-    private static final String MODULE_VERSION = "1.2.32";
+    private static final String MODULE_VERSION = "1.3.17-webdav-15.4.09.5";
     private static final String TARGET_PACKAGE = "com.sec.android.app.myfiles";
     private static final String TARGET_PACKAGE_ALT = "com.samsung.android.app.myfiles";
     private static final String TARGET_PACKAGE_NSM = "com.samsung.android.app.networkstoragemanager";
@@ -182,7 +192,10 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
 
     private static String[] classNameAliases(String className) {
         if ("w8.G".equals(className)) {
-            return new String[]{className, "ha.O"};
+            // My Files 15.4 moved StoragePathUtils from w8.G to ha.P.  ha.O is
+            // only the storage-path constants interface in that build, so using
+            // it here silently leaves every derived WebDAV path as UNKNOWN.
+            return new String[]{className, "ha.P"};
         }
         if ("w8.AbstractC2015g".equals(className)) {
             return new String[]{className, "w8.g"};
@@ -917,7 +930,7 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
             @Override
             public void install() {
                 hookAppMethod(
-                        "ha.O",
+                        "ha.P",
                         classLoader,
                         "E",
                         String.class,
@@ -2398,6 +2411,106 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
                     }
                 }
         );
+        installOptionalHook("NetworkStorageServerListAdapter.WebDAVIcon", new HookInstaller() {
+            @Override
+            public void install() throws Throwable {
+                hookNetworkStorageServerListIcon(classLoader);
+            }
+        });
+    }
+
+    /**
+     * My Files maps all unknown network-storage domains to its FTP resource.  WebDAV uses a
+     * private domain (206), so replace only the rendered icon after the stock adapter has bound
+     * the server row.  This leaves the native FTP, SFTP, and SMB icons untouched.
+     */
+    private static void hookNetworkStorageServerListIcon(final ClassLoader classLoader) throws Throwable {
+        Class<?> adapterClass = findExactAppClass(
+                "com.sec.android.app.myfiles.ui.pages.adapter.NetworkStorageServerListAdapter",
+                classLoader
+        );
+        int hooked = 0;
+        for (Method method : adapterClass.getDeclaredMethods()) {
+            if (!"onBindChildViewHolder".equals(method.getName())
+                    || method.getParameterTypes().length != 4) {
+                continue;
+            }
+            method.setAccessible(true);
+            XposedBridge.hookMethod(method, new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    try {
+                        Object fileInfo = findWebDavFileInfoArgument(param.args);
+                        if (fileInfo == null) {
+                            return;
+                        }
+                        ImageView icon = findServerIconView(param.args != null && param.args.length > 0
+                                ? param.args[0] : null);
+                        if (icon != null) {
+                            icon.setImageDrawable(new WebDavServerIconDrawable());
+                        }
+                    } catch (Throwable t) {
+                        DiagnosticLogger.log("server list WebDAV icon replacement failed");
+                        DiagnosticLogger.log(t);
+                    }
+                }
+            });
+            hooked++;
+        }
+        if (hooked == 0) {
+            throw new NoSuchMethodException(adapterClass.getName() + ".onBindChildViewHolder");
+        }
+        DiagnosticLogger.log("server list WebDAV icon hook methods=" + hooked);
+    }
+
+    private static Object findWebDavFileInfoArgument(Object[] args) {
+        if (args == null) {
+            return null;
+        }
+        for (Object argument : args) {
+            if (readDomainTypeSafe(argument) == DOMAIN_WEBDAV) {
+                return argument;
+            }
+        }
+        return null;
+    }
+
+    private static ImageView findServerIconView(Object holder) {
+        if (holder == null) {
+            return null;
+        }
+        try {
+            Object view = XposedHelpers.callMethod(holder, "getServerIcon");
+            if (view instanceof ImageView) {
+                return (ImageView) view;
+            }
+        } catch (Throwable ignored) {
+            // Older builds may expose the icon only as a holder field.
+        }
+
+        ImageView fallback = null;
+        for (Field field : allFields(holder.getClass())) {
+            if (!ImageView.class.isAssignableFrom(field.getType())) {
+                continue;
+            }
+            try {
+                field.setAccessible(true);
+                Object value = field.get(holder);
+                if (!(value instanceof ImageView)) {
+                    continue;
+                }
+                String name = field.getName().toLowerCase();
+                if (name.contains("server") && name.contains("icon")) {
+                    return (ImageView) value;
+                }
+                if (fallback == null) {
+                    fallback = (ImageView) value;
+                }
+            } catch (Throwable ignored) {
+                // Continue scanning holder fields.
+            }
+        }
+        return fallback;
     }
 
     private static ArrayList<Object> mergeWebDavServerItems(List<?> original, ClassLoader classLoader) {
@@ -3902,6 +4015,7 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
             Class<?> storagePathClass = findAppClass("w8.G", classLoader);
             if (putWebDavStoragePath(getStaticFieldValueIfPresent(storagePathClass, "f23454e"))
                     || putWebDavStoragePath(getStaticFieldValueIfPresent(storagePathClass, "f21272g"))
+                    || putWebDavStoragePath(getStaticFieldValueIfPresent(storagePathClass, "f21281g"))
                     || putWebDavStoragePathByScanning(storagePathClass)) {
                 return;
             }
@@ -4415,6 +4529,60 @@ public final class MyFilesWebDavHook implements IXposedHookLoadPackage {
             }
         }
         return Long.MIN_VALUE;
+    }
+
+    private static final class WebDavServerIconDrawable extends Drawable {
+        private final Paint background = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
+
+        WebDavServerIconDrawable() {
+            background.setColor(Color.rgb(35, 108, 235));
+            text.setColor(Color.WHITE);
+            text.setTextAlign(Paint.Align.CENTER);
+            text.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+        }
+
+        @Override
+        public void draw(Canvas canvas) {
+            Rect bounds = getBounds();
+            float width = bounds.width();
+            float height = bounds.height();
+            if (width <= 0f || height <= 0f) {
+                return;
+            }
+            float side = Math.min(width, height);
+            float inset = side * 0.06f;
+            float left = bounds.left + (width - side) / 2f + inset;
+            float top = bounds.top + (height - side) / 2f + inset;
+            float right = left + side - inset * 2f;
+            float bottom = top + side - inset * 2f;
+            float radius = side * 0.22f;
+            canvas.drawRoundRect(new RectF(left, top, right, bottom), radius, radius, background);
+
+            text.setTextSize(side * 0.31f);
+            Paint.FontMetrics metrics = text.getFontMetrics();
+            float baseline = (top + bottom - metrics.top - metrics.bottom) / 2f;
+            canvas.drawText("WEB", (left + right) / 2f, baseline, text);
+        }
+
+        @Override
+        public void setAlpha(int alpha) {
+            background.setAlpha(alpha);
+            text.setAlpha(alpha);
+            invalidateSelf();
+        }
+
+        @Override
+        public void setColorFilter(ColorFilter colorFilter) {
+            background.setColorFilter(colorFilter);
+            text.setColorFilter(colorFilter);
+            invalidateSelf();
+        }
+
+        @Override
+        public int getOpacity() {
+            return PixelFormat.TRANSLUCENT;
+        }
     }
 
     private static boolean isWebDav(Object value) {

@@ -80,6 +80,7 @@ public final class ChargingDisplaySettingsActivity extends Activity {
 
         setContentView(scrollView);
         bindSettings();
+        LanguageManager.applyToActivity(this);
     }
 
     @Override
@@ -266,20 +267,20 @@ public final class ChargingDisplaySettingsActivity extends Activity {
         contentTemplateInput.setText(settings.contentTemplate);
         plugModeSpinner.setSelection(settings.plugSoundMode);
         unplugModeSpinner.setSelection(unplugSpinnerPosition(settings.unplugSoundMode));
-        plugSoundValue.setText(settings.plugSoundAvailable
+        plugSoundValue.setText(LanguageManager.text(this, settings.plugSoundAvailable
                 ? "自定义文件：" + settings.plugSoundName
-                : "未选择自定义插入音");
-        unplugSoundValue.setText(settings.unplugSoundAvailable
+                : "未选择自定义插入音"));
+        unplugSoundValue.setText(LanguageManager.text(this, settings.unplugSoundAvailable
                 ? "自定义文件：" + settings.unplugSoundName
-                : "未选择自定义拔出音");
-        systemPlugValue.setText("\u7cfb\u7edf\u63d2\u5165\u97f3\uff1a\n\u666e\u901a\uff1a"
+                : "未选择自定义拔出音"));
+        systemPlugValue.setText(LanguageManager.text(this, "\u7cfb\u7edf\u63d2\u5165\u97f3\uff1a\n\u666e\u901a\uff1a"
                 + ChargingStyleSettingsProvider.currentSystemPlugSound(this)
                 + "\n\u5feb\u5145\uff1a"
-                + ChargingStyleSettingsProvider.currentSystemFastPlugSound(this));
+                + ChargingStyleSettingsProvider.currentSystemFastPlugSound(this)));
         String systemUnplug = ChargingStyleSettingsProvider.currentSystemUnplugSound(this);
-        systemUnplugValue.setText(systemUnplug.length() > 0
+        systemUnplugValue.setText(LanguageManager.text(this, systemUnplug.length() > 0
                 ? "\u7cfb\u7edf\u62d4\u51fa\u97f3\uff1a" + systemUnplug
-                : "\u7cfb\u7edf\u672a\u53d1\u73b0\u72ec\u7acb\u7684\u5145\u7535\u62d4\u51fa\u63d0\u793a\u97f3\uff0c\u53ef\u4f7f\u7528\u81ea\u5b9a\u4e49\u62d4\u51fa\u97f3");
+                : "\u7cfb\u7edf\u672a\u53d1\u73b0\u72ec\u7acb\u7684\u5145\u7535\u62d4\u51fa\u63d0\u793a\u97f3\uff0c\u53ef\u4f7f\u7528\u81ea\u5b9a\u4e49\u62d4\u51fa\u97f3"));
         binding = false;
         updatePreview();
     }
@@ -330,8 +331,9 @@ public final class ChargingDisplaySettingsActivity extends Activity {
                 ChargingStyleSettingsProvider.currentBatteryValues(this);
         String content = ChargingStyleSettingsProvider.formatTemplate(
                 textOf(contentTemplateInput), values, "系统内容");
-        previewTitle.setText("预览");
-        previewContent.setText(content.length() == 0 ? "还剩 XX 分钟充满电" : content);
+        previewTitle.setText(LanguageManager.text(this, "预览"));
+        previewContent.setText(LanguageManager.text(this,
+                content.length() == 0 ? "还剩 XX 分钟充满电" : content));
     }
 
     private void chooseSound(int requestCode) {
@@ -426,7 +428,7 @@ public final class ChargingDisplaySettingsActivity extends Activity {
 
     private TextView cardTitle(String text) {
         TextView view = new TextView(this);
-        view.setText(text);
+        view.setText(LanguageManager.text(this, text));
         view.setTextColor(Color.rgb(20, 24, 31));
         view.setTextSize(18);
         view.setIncludeFontPadding(false);
@@ -436,7 +438,7 @@ public final class ChargingDisplaySettingsActivity extends Activity {
 
     private TextView label(String text) {
         TextView view = new TextView(this);
-        view.setText(text);
+        view.setText(LanguageManager.text(this, text));
         view.setTextColor(Color.rgb(46, 52, 64));
         view.setTextSize(14);
         view.setPadding(0, dp(10), 0, dp(6));
@@ -465,8 +467,12 @@ public final class ChargingDisplaySettingsActivity extends Activity {
 
     private Spinner makeSpinner(String[] values) {
         Spinner spinner = new Spinner(this);
+        String[] localizedValues = new String[values.length];
+        for (int i = 0; i < values.length; i++) {
+            localizedValues[i] = LanguageManager.text(this, values[i]);
+        }
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                this, android.R.layout.simple_spinner_item, values);
+                this, android.R.layout.simple_spinner_item, localizedValues);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinner.setAdapter(adapter);
         spinner.setPadding(0, 0, 0, 0);
@@ -476,7 +482,7 @@ public final class ChargingDisplaySettingsActivity extends Activity {
     private Button button(String text) {
         Button button = new Button(this);
         button.setAllCaps(false);
-        button.setText(text);
+        button.setText(LanguageManager.text(this, text));
         button.setTextSize(14);
         return button;
     }

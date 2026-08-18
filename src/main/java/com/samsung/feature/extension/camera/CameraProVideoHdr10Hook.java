@@ -82,6 +82,14 @@ public final class CameraProVideoHdr10Hook implements IXposedHookLoadPackage {
             return;
         }
 
+        // Samsung Camera 16.5 (One UI 8.5) replaced C2.u with i3.x.  Do not
+        // leave the legacy global FPS hooks active there: they change every
+        // same-size menu item and make slow motion play at normal speed.
+        if (!hasLegacyChooser(lpparam.classLoader)) {
+            log("legacy chooser not found; One UI 8.5 branch owns this process");
+            return;
+        }
+
         log("loaded for " + lpparam.packageName + " process=" + lpparam.processName);
         installHook("feature map injection", new Installer() {
             @Override
@@ -137,6 +145,15 @@ public final class CameraProVideoHdr10Hook implements IXposedHookLoadPackage {
                 hookVideoBitrateOverride();
             }
         });
+    }
+
+    private static boolean hasLegacyChooser(ClassLoader classLoader) {
+        try {
+            Class.forName("C2.u", false, classLoader);
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     private static void hookApplicationOnCreate(final ClassLoader classLoader) throws NoSuchMethodException {

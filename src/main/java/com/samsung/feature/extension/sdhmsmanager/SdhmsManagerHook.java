@@ -25,7 +25,6 @@ import java.util.Locale;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 public final class SdhmsManagerHook implements IXposedHookLoadPackage {
@@ -34,6 +33,14 @@ public final class SdhmsManagerHook implements IXposedHookLoadPackage {
     private static final Uri SMART_ANOMALY_URI = Uri.parse("content://com.sec.smartmanager.provider/anomaly_list");
     private static final Uri BARTENDER_HIGH_CPU_URI = Uri.parse("content://com.sec.bartender.provider/high_cpu_processes");
     private static final Uri FAS_URI = Uri.parse("content://com.sec.android.sdhms.fasprovider/ForcedAppStandby");
+    private static final String[] LIMITER_CLASS_CANDIDATES = {
+            "k5.m5",  // SDHMS 1.0.0 versionCode 36 / Android 16
+            "Q1.j2"  // Older SDHMS builds
+    };
+    private static final String[] STATUS_CLASS_CANDIDATES = {
+            "e5.b",  // SDHMS 1.0.0 versionCode 36 / Android 16
+            "N1.b"  // Older SDHMS builds
+    };
 
     private static volatile Context appContext;
     private static volatile Object appObject;
@@ -48,26 +55,33 @@ public final class SdhmsManagerHook implements IXposedHookLoadPackage {
         log("loading in " + lpparam.packageName + " process=" + lpparam.processName);
         installHook("ServiceManager.addService", new Installer() {
             @Override
-            public void install() {
+            public void install() throws Throwable {
                 hookAddService(lpparam.classLoader);
             }
         });
         installHook("Application.onCreate", new Installer() {
             @Override
-            public void install() {
+            public void install() throws Throwable {
                 hookApplication(lpparam.classLoader);
             }
         });
     }
 
-    private static void hookAddService(ClassLoader classLoader) {
-        XposedHelpers.findAndHookMethod(
-                "android.os.ServiceManager",
-                classLoader,
-                "addService",
-                String.class,
-                IBinder.class,
-                new XC_MethodHook() {
+    private static void hookAddService(ClassLoader classLoader) throws Throwable {
+        Class<?> serviceManager = Class.forName("android.os.ServiceManager", false, classLoader);
+        Method[] methods = serviceManager.getDeclaredMethods();
+        int installed = 0;
+        for (int i = 0; i < methods.length; i++) {
+            Method method = methods[i];
+            Class<?>[] parameterTypes = method.getParameterTypes();
+            if (!"addService".equals(method.getName())
+                    || parameterTypes.length < 2
+                    || parameterTypes[0] != String.class
+                    || !IBinder.class.isAssignableFrom(parameterTypes[1])) {
+                continue;
+            }
+            method.setAccessible(true);
+            XposedBridge.hookMethod(method, new XC_MethodHook() {
                     @Override
                     protected void beforeHookedMethod(MethodHookParam param) {
                         if (param.args != null
@@ -77,16 +91,19 @@ public final class SdhmsManagerHook implements IXposedHookLoadPackage {
                             log("captured sdhms binder: " + className(sdhmsBinder));
                         }
                     }
-                }
-        );
+                });
+            installed++;
+        }
+        if (installed == 0) {
+            throw new NoSuchMethodException("No compatible ServiceManager.addService overload found");
+        }
+        log("hooked ServiceManager.addService overloads=" + installed);
     }
 
-    private static void hookApplication(ClassLoader classLoader) {
-        XposedHelpers.findAndHookMethod(
-                "android.app.Application",
-                classLoader,
-                "onCreate",
-                new XC_MethodHook() {
+    private static void hookApplication(ClassLoader classLoader) throws Throwable {
+        Method onCreate = Application.class.getDeclaredMethod("onCreate");
+        onCreate.setAccessible(true);
+        XposedBridge.hookMethod(onCreate, new XC_MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) {
                         if (!(param.thisObject instanceof Application)) {
@@ -101,8 +118,7 @@ public final class SdhmsManagerHook implements IXposedHookLoadPackage {
                         captureBinderFromApplication(application);
                         installCommandReceiver(application);
                     }
-                }
-        );
+                });
     }
 
     private static void installCommandReceiver(Context context) {
@@ -197,7 +213,7 @@ public final class SdhmsManagerHook implements IXposedHookLoadPackage {
         thermal.putBoolean("brightnessLimitOff", callBoolean(limiter, "h", false));
         thermal.putBoolean("cpTmOff", callBoolean(limiter, "i", false));
         thermal.putBoolean("thermalMasterOff", callBoolean(limiter, "j", false));
-        Object status = callStaticNoArgs("N1.b", "f");
+        Object status = getThermalStatus();
         thermal.putBoolean("statusAvailable", status != null);
         thermal.putBoolean("brightnessLimited", callBoolean(status, "a", false));
         thermal.putBoolean("cpLowMode", callBoolean(status, "b", false));
@@ -218,8 +234,11 @@ public final class SdhmsManagerHook implements IXposedHookLoadPackage {
             if (constants != null) {
                 for (int i = 0; i < constants.length; i++) {
                     Object item = constants[i];
-                    String name = String.valueOf(XposedHelpers.callMethod(item, "name"));
-                    int raw = ((Integer) XposedHelpers.callMethod(item, "l")).intValue();
+                    String name = item instanceof Enum ? ((Enum) item).name() : String.valueOf(item);
+                    int raw = callIntAny(item, new String[]{"k", "l"}, Integer.MIN_VALUE);
+                    if (raw == Integer.MIN_VALUE) {
+                        throw new NoSuchMethodException("Temperature value accessor k/l is unavailable");
+                    }
                     rows.add(name + "=" + formatTemperature(raw));
                 }
             }
@@ -230,8 +249,11 @@ public final class SdhmsManagerHook implements IXposedHookLoadPackage {
             Object binder = resolveSdhmsBinder();
             for (int i = 0; i < 20; i++) {
                 try {
-                    Object value = XposedHelpers.callMethod(binder, "getTemperature", Integer.valueOf(i));
-                    rows.add("sensor[" + i + "]=" + formatTemperature(((Integer) value).intValue()));
+                    int value = callIntWithIntArg(binder, "getTemperature", i, Integer.MIN_VALUE);
+                    if (value == Integer.MIN_VALUE) {
+                        break;
+                    }
+                    rows.add("sensor[" + i + "]=" + formatTemperature(value));
                 } catch (Throwable ignored) {
                     break;
                 }
@@ -291,17 +313,17 @@ public final class SdhmsManagerHook implements IXposedHookLoadPackage {
 
     private static void setThermalMaster(boolean disabled) {
         Object limiter = requireLimiter();
-        XposedHelpers.callMethod(limiter, "d", Boolean.valueOf(disabled));
+        callBooleanSetter(limiter, "d", disabled);
     }
 
     private static void setBrightnessLimitOff(boolean disabled) {
         Object limiter = requireLimiter();
-        XposedHelpers.callMethod(limiter, "k", Boolean.valueOf(disabled));
+        callBooleanSetter(limiter, "k", disabled);
     }
 
     private static void setCpThermalMitigationOff(boolean disabled) {
         Object limiter = requireLimiter();
-        XposedHelpers.callMethod(limiter, "l", Boolean.valueOf(disabled));
+        callBooleanSetter(limiter, "l", disabled);
     }
 
     private static void setFasRestricted(String pkg, boolean restricted) throws Exception {
@@ -351,7 +373,7 @@ public final class SdhmsManagerHook implements IXposedHookLoadPackage {
     private static Object requireLimiter() {
         Object limiter = getLimiter();
         if (limiter == null) {
-            throw new IllegalStateException("Q1.j2 limiter is not available");
+            throw new IllegalStateException("SDHMS thermal limiter is not available (k5.m5 / Q1.j2)");
         }
         return limiter;
     }
@@ -361,16 +383,18 @@ public final class SdhmsManagerHook implements IXposedHookLoadPackage {
         if (context == null) {
             return null;
         }
-        try {
-            Class<?> limiterClass = findClass("Q1.j2");
-            if (limiterClass == null) {
-                return null;
+        Throwable lastFailure = null;
+        Class<?> limiterClass = findLimiterClass();
+        if (limiterClass != null) {
+            try {
+                Method factory = findMethod(limiterClass, "g", Context.class);
+                return factory.invoke(null, context);
+            } catch (Throwable throwable) {
+                lastFailure = throwable;
             }
-            return XposedHelpers.callStaticMethod(limiterClass, "g", context);
-        } catch (Throwable throwable) {
-            log("get limiter failed: " + throwable);
-            return null;
         }
+        log("get limiter failed: " + lastFailure);
+        return null;
     }
 
     private static Object resolveSdhmsBinder() {
@@ -417,15 +441,73 @@ public final class SdhmsManagerHook implements IXposedHookLoadPackage {
         context.sendBroadcast(response);
     }
 
-    private static Object callStaticNoArgs(String className, String methodName) {
-        try {
-            Class<?> clazz = findClass(className);
-            if (clazz == null) {
-                return null;
+    private static Class<?> findLimiterClass() {
+        for (int i = 0; i < LIMITER_CLASS_CANDIDATES.length; i++) {
+            Class<?> candidate = findClass(LIMITER_CLASS_CANDIDATES[i]);
+            if (isLimiterApi(candidate)) {
+                return candidate;
             }
-            return XposedHelpers.callStaticMethod(clazz, methodName);
+        }
+        // Keep a structural fallback so a package-only obfuscation rename does not
+        // immediately break the three switches again.
+        Class<?> settingsActivity = findClass("com.sec.android.sdhms.debugger.ThermalLimitSettingActivity");
+        if (settingsActivity != null) {
+            Field[] fields = settingsActivity.getDeclaredFields();
+            for (int i = 0; i < fields.length; i++) {
+                Class<?> candidate = fields[i].getType();
+                if (isLimiterApi(candidate)) {
+                    log("resolved limiter structurally from debugger activity: " + candidate.getName());
+                    return candidate;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static boolean isLimiterApi(Class<?> candidate) {
+        if (candidate == null) {
+            return false;
+        }
+        try {
+            findMethod(candidate, "g", Context.class);
+            findMethod(candidate, "d", boolean.class);
+            findMethod(candidate, "h");
+            findMethod(candidate, "i");
+            findMethod(candidate, "j");
+            findMethod(candidate, "k", boolean.class);
+            findMethod(candidate, "l", boolean.class);
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static Object getThermalStatus() {
+        for (int i = 0; i < STATUS_CLASS_CANDIDATES.length; i++) {
+            try {
+                Class<?> candidate = findClass(STATUS_CLASS_CANDIDATES[i]);
+                if (candidate != null) {
+                    Object value = findMethod(candidate, "f").invoke(null);
+                    if (value != null) {
+                        return value;
+                    }
+                }
+            } catch (Throwable ignored) {
+                // Try the next known app generation.
+            }
+        }
+        return null;
+    }
+
+    private static void callBooleanSetter(Object target, String methodName, boolean value) {
+        if (target == null) {
+            throw new IllegalStateException("Target is null for " + methodName);
+        }
+        try {
+            findMethod(target.getClass(), methodName, boolean.class).invoke(target, Boolean.valueOf(value));
         } catch (Throwable throwable) {
-            return null;
+            throw new IllegalStateException("Failed to invoke " + target.getClass().getName()
+                    + "." + methodName + "(boolean)", throwable);
         }
     }
 
@@ -434,7 +516,7 @@ public final class SdhmsManagerHook implements IXposedHookLoadPackage {
             return fallback;
         }
         try {
-            Object value = XposedHelpers.callMethod(target, methodName);
+            Object value = findMethod(target.getClass(), methodName).invoke(target);
             return value instanceof Boolean ? ((Boolean) value).booleanValue() : fallback;
         } catch (Throwable ignored) {
             return fallback;
@@ -446,8 +528,34 @@ public final class SdhmsManagerHook implements IXposedHookLoadPackage {
             return fallback;
         }
         try {
-            Object value = XposedHelpers.callMethod(target, methodName);
-            return value instanceof Integer ? ((Integer) value).intValue() : fallback;
+            Object value = findMethod(target.getClass(), methodName).invoke(target);
+            return value instanceof Number ? ((Number) value).intValue() : fallback;
+        } catch (Throwable ignored) {
+            return fallback;
+        }
+    }
+
+    private static int callIntAny(Object target, String[] methodNames, int fallback) {
+        if (target == null || methodNames == null) {
+            return fallback;
+        }
+        for (int i = 0; i < methodNames.length; i++) {
+            int value = callInt(target, methodNames[i], Integer.MIN_VALUE);
+            if (value != Integer.MIN_VALUE) {
+                return value;
+            }
+        }
+        return fallback;
+    }
+
+    private static int callIntWithIntArg(Object target, String methodName, int argument, int fallback) {
+        if (target == null) {
+            return fallback;
+        }
+        try {
+            Object value = findMethod(target.getClass(), methodName, int.class)
+                    .invoke(target, Integer.valueOf(argument));
+            return value instanceof Number ? ((Number) value).intValue() : fallback;
         } catch (Throwable ignored) {
             return fallback;
         }
@@ -459,7 +567,7 @@ public final class SdhmsManagerHook implements IXposedHookLoadPackage {
             return result;
         }
         try {
-            Object value = XposedHelpers.callMethod(target, methodName);
+            Object value = findMethod(target.getClass(), methodName).invoke(target);
             if (value instanceof String[]) {
                 String[] strings = (String[]) value;
                 for (int i = 0; i < strings.length && i < limit; i++) {
@@ -472,11 +580,28 @@ public final class SdhmsManagerHook implements IXposedHookLoadPackage {
         return result;
     }
 
+    private static Method findMethod(Class<?> type, String name, Class<?>... parameterTypes)
+            throws NoSuchMethodException {
+        Class<?> current = type;
+        while (current != null) {
+            try {
+                Method method = current.getDeclaredMethod(name, parameterTypes);
+                method.setAccessible(true);
+                return method;
+            } catch (NoSuchMethodException ignored) {
+                current = current.getSuperclass();
+            }
+        }
+        Method method = type.getMethod(name, parameterTypes);
+        method.setAccessible(true);
+        return method;
+    }
+
     private static Class<?> findClass(String name) {
         try {
             Context context = appContext;
             ClassLoader loader = context != null ? context.getClassLoader() : SdhmsManagerHook.class.getClassLoader();
-            return XposedHelpers.findClass(name, loader);
+            return Class.forName(name, false, loader);
         } catch (Throwable throwable) {
             return null;
         }

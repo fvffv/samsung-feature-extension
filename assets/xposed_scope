@@ -6,9 +6,10 @@ com.samsung.android.da.daagent
 com.sec.android.sdhms
 com.samsung.android.game.gametools
 com.android.nfc
-com.samsung.android.bixby.agent
 com.sec.android.app.launcher
 com.sec.android.app.camera
 com.android.settings
 com.samsung.android.biometrics.app.setting
 com.android.systemui
+com.sec.android.app.vepreload
+com.samsung.android.incallui

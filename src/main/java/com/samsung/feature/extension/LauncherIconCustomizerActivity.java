@@ -289,6 +289,7 @@ public final class LauncherIconCustomizerActivity extends Activity {
         ));
 
         setContentView(root);
+        LanguageManager.applyToActivity(this);
     }
 
     private void loadApps() {

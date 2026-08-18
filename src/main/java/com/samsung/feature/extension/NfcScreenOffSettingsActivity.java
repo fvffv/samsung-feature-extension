@@ -82,6 +82,7 @@ public final class NfcScreenOffSettingsActivity extends Activity {
         ));
 
         setContentView(root);
+        LanguageManager.applyToActivity(this);
     }
 
     private RadioButton createOption(int id, String title, String description) {

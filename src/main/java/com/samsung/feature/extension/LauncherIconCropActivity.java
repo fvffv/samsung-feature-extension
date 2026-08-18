@@ -152,6 +152,7 @@ public final class LauncherIconCropActivity extends Activity {
         ));
 
         setContentView(root);
+        LanguageManager.applyToActivity(this);
     }
 
     private void addShapeControls(LinearLayout root) {

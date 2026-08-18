@@ -52,7 +52,8 @@ public final class CameraBitrateSettingsActivity extends Activity {
         root.addView(title, matchWrapParams());
 
         TextView description = new TextView(this);
-        description.setText("按 8K、4K、FHD 分别控制视频录制码率。检测方法：先打开此页面，然后打开相机视频录制界面（无需录制）即可读取默认码率，修改后的码率请以实际录制出来的为准！");
+        description.setText(LanguageManager.text(this,
+                "按 8K、4K、FHD 分别控制视频录制码率。检测方法：先打开此页面，然后打开相机视频录制界面（无需录制）即可读取默认码率，修改后的码率请以实际录制出来的为准！"));
         description.setTextColor(Color.rgb(92, 99, 111));
         description.setTextSize(15);
         description.setLineSpacing(dp(3), 1.0f);
@@ -64,12 +65,14 @@ public final class CameraBitrateSettingsActivity extends Activity {
 
         setContentView(scrollView);
         refreshState();
+        LanguageManager.applyToActivity(this);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         refreshState();
+        LanguageManager.applyToActivity(this);
     }
 
     private View buildObservedCard() {
@@ -77,7 +80,8 @@ public final class CameraBitrateSettingsActivity extends Activity {
         card.addView(sectionTitle("最近检测到的默认码率"), matchWrapParams());
 
         TextView help = new TextView(this);
-        help.setText("检测方法：先打开此页面，然后打开相机视频录制界面（无需录制）即可读取默认码率，修改后的码率请以实际录制出来的为准！");
+        help.setText(LanguageManager.text(this,
+                "检测方法：先打开此页面，然后打开相机视频录制界面（无需录制）即可读取默认码率，修改后的码率请以实际录制出来的为准！"));
         help.setTextColor(Color.rgb(92, 99, 111));
         help.setTextSize(13);
         help.setLineSpacing(dp(3), 1.0f);
@@ -126,7 +130,7 @@ public final class CameraBitrateSettingsActivity extends Activity {
         row.setPadding(0, dp(12), 0, 0);
 
         Switch toggle = new Switch(this);
-        toggle.setText(label);
+        toggle.setText(LanguageManager.text(this, label));
         toggle.setTextColor(Color.rgb(24, 29, 36));
         toggle.setTextSize(16);
         row.addView(toggle, new LinearLayout.LayoutParams(
@@ -138,7 +142,7 @@ public final class CameraBitrateSettingsActivity extends Activity {
         EditText input = new EditText(this);
         input.setSingleLine(true);
         input.setInputType(InputType.TYPE_CLASS_NUMBER);
-        input.setHint(hint);
+        input.setHint(LanguageManager.text(this, hint));
         input.setGravity(Gravity.CENTER);
         row.addView(input, new LinearLayout.LayoutParams(dp(132), ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -251,7 +255,7 @@ public final class CameraBitrateSettingsActivity extends Activity {
         for (int i = 0; i < CameraBitrateSettingsProvider.VIDEO_COUNT; i++) {
             appendVideoObserved(builder, settings, i);
         }
-        observedValue.setText(builder.toString());
+        observedValue.setText(LanguageManager.text(this, builder.toString()));
     }
 
     private void appendVideoObserved(StringBuilder builder, CameraBitrateSettingsProvider.Settings settings, int category) {
@@ -302,7 +306,7 @@ public final class CameraBitrateSettingsActivity extends Activity {
         } else {
             statusValue.setTextColor(Color.rgb(22, 163, 74));
         }
-        statusValue.setText(builder.toString());
+        statusValue.setText(LanguageManager.text(this, builder.toString()));
     }
 
     private String formatMbps(long bitrateBps) {
@@ -315,7 +319,7 @@ public final class CameraBitrateSettingsActivity extends Activity {
 
     private TextView sectionTitle(String text) {
         TextView view = new TextView(this);
-        view.setText(text);
+        view.setText(LanguageManager.text(this, text));
         view.setTextColor(Color.rgb(20, 24, 31));
         view.setTextSize(18);
         view.setIncludeFontPadding(false);

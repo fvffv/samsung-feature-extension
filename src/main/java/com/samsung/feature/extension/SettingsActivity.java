@@ -16,12 +16,14 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.Switch;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import org.json.JSONObject;
@@ -57,6 +59,12 @@ public final class SettingsActivity extends Activity {
                     "解锁专业模式 4K120 HDR10+、8K 24/30/60 HDR10+ 录制，以及慢动作 UHD 240 帧录制。支持按 8K、4K、FHD 自定义视频录制码率。",
                     CameraBitrateSettingsActivity.class,
                     "com.sec.android.app.camera"
+            ),
+            new FeatureItem(
+                    "文本通话自定义开场语",
+                    "自定义三星电话“语音转文字”和“代为说话”两种文本通话模式的开场播报内容；留空即可使用系统默认文案。",
+                    TextCallGreetingSettingsActivity.class,
+                    "com.samsung.android.incallui"
             ),
             new FeatureItem(
                     "应用分身全应用列表",
@@ -96,10 +104,11 @@ public final class SettingsActivity extends Activity {
                     "com.android.systemui"
             ),
             new FeatureItem(
-                    "Bixby OpenAI 接入（测试版）",
-                    "测试版功能：让 Bixby 能调用自定义模型输出内容，目前仍在持续调整。",
-                    BixbyOpenAiSettingsActivity.class,
-                    "com.samsung.android.bixby.agent"
+                    "One UI 8.5 音频橡皮擦",
+                    "为 S24 Ultra 以下机型开放视频编辑工作室和快速面板的音频橡皮擦；快速面板会在检测到符合条件的媒体音频播放时自动显示。",
+                    null,
+                    "com.sec.android.app.vepreload",
+                    "com.android.systemui"
             ),
             new FeatureItem(
                     "One UI 主屏幕图标自定义",
@@ -139,7 +148,7 @@ public final class SettingsActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setTitle("三星功能扩展");
+        setTitle(LanguageManager.text(this, "三星功能扩展"));
 
         resolveCurrentVersion();
 
@@ -196,6 +205,7 @@ public final class SettingsActivity extends Activity {
 
         setContentView(root);
         beginLatestVersionCheck(false);
+        LanguageManager.applyToActivity(this);
     }
 
     private void openFeature(FeatureItem item) {
@@ -237,6 +247,12 @@ public final class SettingsActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
         ));
+        LinearLayout.LayoutParams languageParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        languageParams.setMargins(0, dp(12), 0, 0);
+        wrapper.addView(buildLanguageCard(), languageParams);
         LinearLayout.LayoutParams logParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
@@ -244,6 +260,67 @@ public final class SettingsActivity extends Activity {
         logParams.setMargins(0, dp(12), 0, 0);
         wrapper.addView(buildLogSwitchCard(), logParams);
         return wrapper;
+    }
+
+    private View buildLanguageCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(18), dp(16), dp(18), dp(16));
+        card.setBackground(makeInfoCardBackground());
+
+        TextView title = new TextView(this);
+        title.setText(LanguageManager.text(this, "语言"));
+        title.setTextSize(18);
+        title.setTextColor(Color.rgb(20, 24, 31));
+        title.setIncludeFontPadding(false);
+        card.addView(title, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+
+        TextView description = new TextView(this);
+        description.setText(LanguageManager.text(this,
+                "选择模块界面语言。切换后会立即刷新当前页面，后续打开的设置页也会保持此语言。"));
+        description.setTextSize(13);
+        description.setTextColor(Color.rgb(98, 105, 117));
+        description.setLineSpacing(dp(2), 1.0f);
+        description.setPadding(0, dp(8), 0, dp(8));
+        card.addView(description, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+
+        final Spinner selector = new Spinner(this);
+        final boolean english = LanguageManager.isEnglish(this);
+        String[] languages = english
+                ? new String[]{"Simplified Chinese", "English"}
+                : new String[]{"简体中文", "English"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, languages);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        selector.setAdapter(adapter);
+        selector.setSelection(english ? 1 : 0, false);
+        selector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                boolean selectedEnglish = position == 1;
+                if (selectedEnglish == LanguageManager.isEnglish(SettingsActivity.this)) {
+                    return;
+                }
+                LanguageManager.setEnglish(SettingsActivity.this, selectedEnglish);
+                recreate();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                // Keep the current preference.
+            }
+        });
+        card.addView(selector, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+        return card;
     }
 
     private View buildLogSwitchCard() {
@@ -343,7 +420,7 @@ public final class SettingsActivity extends Activity {
         ));
 
         TextView cardSubtitle = new TextView(this);
-        cardSubtitle.setText("通过 GitHub Releases 检查是否为最新版。");
+        cardSubtitle.setText("已安装版本取自当前 APK；GitHub 发布版仅反映远端 Releases。");
         cardSubtitle.setTextSize(13);
         cardSubtitle.setTextColor(Color.rgb(98, 105, 117));
         cardSubtitle.setPadding(0, dp(8), 0, dp(14));
@@ -353,14 +430,14 @@ public final class SettingsActivity extends Activity {
         ));
 
         currentVersionValue = makeValueText(currentVersionLabel());
-        card.addView(makeInfoRow("当前版本", currentVersionValue));
+        card.addView(makeInfoRow("已安装版本", currentVersionValue));
 
         latestVersionValue = makeValueText("检查中...");
-        card.addView(makeInfoRow("最新版本", latestVersionValue));
+        card.addView(makeInfoRow("GitHub 发布版", latestVersionValue));
 
         updateStatusValue = makeValueText("正在检查");
         updateStatusValue.setTextColor(Color.rgb(59, 130, 246));
-        card.addView(makeInfoRow("更新状态", updateStatusValue));
+        card.addView(makeInfoRow("版本比较", updateStatusValue));
 
         githubUrlValue = makeValueText(GITHUB_REPO_URL);
         githubUrlValue.setTextColor(Color.rgb(37, 99, 235));
@@ -408,7 +485,7 @@ public final class SettingsActivity extends Activity {
         ));
 
         TextView testNote = new TextView(this);
-        testNote.setText("提示：当前发布版本仅在 One UI 8.0 中测试过，请尽量保持系统、LSPosed 和相关三星应用为最新版本。");
+        testNote.setText("提示：当前发布版本主要在 One UI 8.0 / 8.5 中测试；音频橡皮擦兼容层面向 One UI 8.5，请尽量保持系统、LSPosed 和相关三星应用为最新版本。");
         testNote.setTextColor(Color.rgb(120, 83, 0));
         testNote.setTextSize(12);
         testNote.setLineSpacing(dp(2), 1.0f);
@@ -459,10 +536,12 @@ public final class SettingsActivity extends Activity {
             return;
         }
         if (enabled) {
-            logStatusValue.setText("已开启，会输出诊断日志，可能轻微增加后台开销。");
+            logStatusValue.setText(LanguageManager.text(this,
+                    "已开启，会输出诊断日志，可能轻微增加后台开销。"));
             logStatusValue.setTextColor(Color.rgb(22, 163, 74));
         } else {
-            logStatusValue.setText("已关闭，推荐日常使用保持关闭。");
+            logStatusValue.setText(LanguageManager.text(this,
+                    "已关闭，推荐日常使用保持关闭。"));
             logStatusValue.setTextColor(Color.rgb(92, 99, 111));
         }
     }
@@ -510,14 +589,14 @@ public final class SettingsActivity extends Activity {
 
     private String currentVersionLabel() {
         if (currentVersionName == null || currentVersionName.length() == 0) {
-            return "未知";
+            return LanguageManager.text(this, "未知");
         }
         return currentVersionName + " (" + currentVersionCode + ")";
     }
 
     private void beginLatestVersionCheck(final boolean manual) {
-        latestVersionValue.setText("检查中...");
-        updateStatusValue.setText("正在检查");
+        latestVersionValue.setText(LanguageManager.text(this, "检查中..."));
+        updateStatusValue.setText(LanguageManager.text(this, "正在检查"));
         updateStatusValue.setTextColor(Color.rgb(59, 130, 246));
         checkUpdateAction.setEnabled(false);
         checkUpdateAction.setAlpha(0.6f);
@@ -546,8 +625,8 @@ public final class SettingsActivity extends Activity {
                         checkUpdateAction.setEnabled(true);
                         checkUpdateAction.setAlpha(1f);
                         if (throwable != null) {
-                            latestVersionValue.setText("检查失败");
-                            updateStatusValue.setText("无法获取版本信息");
+                            latestVersionValue.setText(LanguageManager.text(SettingsActivity.this, "检查失败"));
+                            updateStatusValue.setText(LanguageManager.text(SettingsActivity.this, "无法获取版本信息"));
                             updateStatusValue.setTextColor(Color.rgb(220, 38, 38));
                             if (manualCheck) {
                                 showSimpleDialog(
@@ -616,10 +695,10 @@ public final class SettingsActivity extends Activity {
         String currentNormalized = normalizeVersion(currentVersionName);
         String latestNormalized = normalizeVersion(latestTag);
 
-        latestVersionValue.setText(latestTag.length() == 0 ? "未知" : latestTag);
+        latestVersionValue.setText(latestTag.length() == 0 ? LanguageManager.text(this, "未知") : latestTag);
         int compare = compareVersions(currentNormalized, latestNormalized);
         if (latestNormalized.length() == 0) {
-            updateStatusValue.setText("未获取到版本号");
+            updateStatusValue.setText(LanguageManager.text(this, "未获取到版本号"));
             updateStatusValue.setTextColor(Color.rgb(180, 83, 9));
             if (manual) {
                 showSimpleDialog("检查更新", "未从 GitHub Releases 获取到有效的版本号。");
@@ -627,7 +706,7 @@ public final class SettingsActivity extends Activity {
             return;
         }
         if (compare == 0) {
-            updateStatusValue.setText("已是最新版本");
+            updateStatusValue.setText(LanguageManager.text(this, "已是最新版本"));
             updateStatusValue.setTextColor(Color.rgb(22, 163, 74));
             if (manual) {
                 showSimpleDialog("检查更新", "当前已经是最新版本。");
@@ -635,7 +714,7 @@ public final class SettingsActivity extends Activity {
             return;
         }
         if (compare > 0) {
-            updateStatusValue.setText("当前版本高于 Releases 最新版");
+            updateStatusValue.setText(LanguageManager.text(this, "当前版本高于 Releases 最新版"));
             updateStatusValue.setTextColor(Color.rgb(180, 83, 9));
             if (manual) {
                 showSimpleDialog("检查更新", "当前安装的是比 Releases 更新的版本。");
@@ -643,7 +722,7 @@ public final class SettingsActivity extends Activity {
             return;
         }
 
-        updateStatusValue.setText("发现新版本");
+        updateStatusValue.setText(LanguageManager.text(this, "发现新版本"));
         updateStatusValue.setTextColor(Color.rgb(220, 38, 38));
         if (!updatePromptShown || manual) {
             updatePromptShown = true;
@@ -656,7 +735,7 @@ public final class SettingsActivity extends Activity {
                 + latestTag
                 + "\n当前版本："
                 + currentVersionName
-                + "\n\n目前发布版本仅在 One UI 8.0 环境中测试过，请尽量保持系统、LSPosed 和相关三星应用为最新版本。";
+                + "\n\n目前发布版本主要在 One UI 8.0 / 8.5 环境中测试；音频橡皮擦兼容层面向 One UI 8.5，请尽量保持系统、LSPosed 和相关三星应用为最新版本。";
         new AlertDialog.Builder(this)
                 .setTitle("发现新版本")
                 .setMessage(message)
@@ -832,10 +911,11 @@ public final class SettingsActivity extends Activity {
             FeatureItem item = FEATURES[position];
             boolean clickable = item.isClickable();
             icon.setImageDrawable(resolveIcon(item.packageNames));
-            name.setText(item.name);
-            description.setText(item.description);
+            name.setText(LanguageManager.text(SettingsActivity.this, item.name));
+            description.setText(LanguageManager.text(SettingsActivity.this, item.description));
             row.setBackground(makeRowBackground(clickable));
-            action.setText(clickable ? "查看设置 >" : "已集成");
+            action.setText(LanguageManager.text(SettingsActivity.this,
+                    clickable ? "查看设置 >" : "已集成"));
             action.setTextColor(clickable ? Color.WHITE : Color.rgb(105, 112, 124));
             action.setBackground(makeActionBackground(clickable));
             return row;

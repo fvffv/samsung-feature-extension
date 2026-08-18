@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -49,6 +50,21 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
     private static final String COMMAND_PICTURE_SIZE_50MP = "BACK_CAMERA_PRO_PICTURE_SIZE_50MP";
     private static final String COMMAND_PICTURE_SIZE_12MP = "BACK_CAMERA_PRO_PICTURE_SIZE_12MP";
     private static final String KEY_BACK_CAMERA_PICTURE_RATIO = "BACK_CAMERA_PICTURE_RATIO";
+    private static final FeatureApi[] FEATURE_APIS = {
+            // Expert RAW 5.0.08.2 / One UI 8 and newer.
+            new FeatureApi("R1.g", "R1.a", "R1.l", "B0.g", "x", "u"),
+            // Expert RAW 4.x and older releases kept for backwards compatibility.
+            new FeatureApi("H1.g", "H1.a", "H1.l", "B2.a", "p", "k")
+    };
+    private static final String[] COMMAND_MAP_CLASSES = {
+            "B1.f", // Expert RAW 5.0.08.2+
+            "r1.e"  // Expert RAW 4.x and older
+    };
+    private static final String[] COMMAND_RESOURCE_CLASSES = {
+            "a2.h", // Expert RAW 5.0.08.2+
+            "Q1.h", // Expert RAW 4.x and older
+            "q1.h"  // Some older obfuscation maps use a lower-case package.
+    };
     private static final String[] SUPPORTED_ULTRA_MODELS = {
             "SM-S918", // Galaxy S23 Ultra
             "SM-S928", // Galaxy S24 Ultra
@@ -67,7 +83,6 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
             "e3",
             "pa3"
     };
-    private static volatile boolean accessorsInstalled;
     private static volatile Context appContext;
     private static volatile int highResolutionId = -1;
     private static volatile int unsupported24MpResolutionId = -1;
@@ -111,64 +126,94 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
         });
     }
 
-    private static void hookFeatureLoader(final ClassLoader classLoader) throws ClassNotFoundException, NoSuchMethodException {
-        Method loadFeature = Class.forName("H1.g", false, classLoader).getDeclaredMethod("f", Context.class);
-        XposedBridge.hookMethod(loadFeature, new XC_MethodHook() {
-            @Override
-            protected void afterHookedMethod(MethodHookParam param) {
-                if (param.args != null && param.args.length > 0 && param.args[0] instanceof Context) {
-                    sanitizeUnsupported24MpState((Context) param.args[0], "H1.g.f");
-                }
-                injectFeatureMap(classLoader, "H1.g.f");
+    private static void hookFeatureLoader(final ClassLoader classLoader) throws Throwable {
+        int installed = 0;
+        Throwable lastFailure = null;
+        for (int i = 0; i < FEATURE_APIS.length; i++) {
+            final FeatureApi api = FEATURE_APIS[i];
+            try {
+                Class<?> loaderClass = Class.forName(api.loaderClassName, false, classLoader);
+                final Method loadFeature = loaderClass.getDeclaredMethod("f", Context.class);
+                loadFeature.setAccessible(true);
+                XposedBridge.hookMethod(loadFeature, new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) {
+                        String source = api.loaderClassName + ".f";
+                        if (param.args != null && param.args.length > 0 && param.args[0] instanceof Context) {
+                            sanitizeUnsupported24MpState((Context) param.args[0], source);
+                        }
+                        injectFeatureMap(classLoader, source);
+                    }
+                });
+                installed++;
+                log("feature loader variant installed: " + api.loaderClassName);
+            } catch (Throwable throwable) {
+                lastFailure = throwable;
             }
-        });
+        }
+        if (installed == 0) {
+            throw new ClassNotFoundException("No supported Expert RAW feature loader found", lastFailure);
+        }
     }
 
-    private static void hookFeatureAccessors(final ClassLoader classLoader) throws ClassNotFoundException, NoSuchMethodException {
-        if (accessorsInstalled) {
-            return;
+    private static void hookFeatureAccessors(final ClassLoader classLoader) throws Throwable {
+        int installed = 0;
+        Throwable lastFailure = null;
+        for (int i = 0; i < FEATURE_APIS.length; i++) {
+            final FeatureApi api = FEATURE_APIS[i];
+            try {
+                final Class<?> booleanFeatureKey = Class.forName(api.booleanKeyClassName, false, classLoader);
+                final Class<?> stringFeatureKey = Class.forName(api.stringKeyClassName, false, classLoader);
+                Class<?> featureAccessor = Class.forName(api.accessorClassName, false, classLoader);
+
+                Method booleanAccessor = featureAccessor.getDeclaredMethod(api.booleanAccessorMethod, booleanFeatureKey);
+                booleanAccessor.setAccessible(true);
+                XposedBridge.hookMethod(booleanAccessor, new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) {
+                        String key = enumName(param.args != null && param.args.length > 0 ? param.args[0] : null);
+                        if (SUPPORT_24MP_MENU.equals(key)) {
+                            param.setResult(Boolean.valueOf(shouldEnableProPictureSizeMenu()));
+                            return;
+                        }
+                        if (SUPPORT_ULTRA.equals(key)) {
+                            param.setResult(Boolean.valueOf(isUltraDevice()));
+                            return;
+                        }
+                        if (SUPPORT_HIGH.equals(key) || SUPPORT_ADAPTIVE_PIXEL.equals(key)) {
+                            param.setResult(Boolean.TRUE);
+                        }
+                    }
+                });
+
+                Method stringAccessor = featureAccessor.getDeclaredMethod(api.stringAccessorMethod, stringFeatureKey);
+                stringAccessor.setAccessible(true);
+                XposedBridge.hookMethod(stringAccessor, new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) {
+                        String key = enumName(param.args != null && param.args.length > 0 ? param.args[0] : null);
+                        Object current = param.getResult();
+                        String value = current instanceof String ? (String) current : "";
+                        if (RES_24MP.equals(key) && !shouldEnable24MpFeature()) {
+                            param.setResult(VALUE_HIGH);
+                            return;
+                        }
+                        String forced = forcedResolution(key, value);
+                        if (forced != null) {
+                            param.setResult(forced);
+                        }
+                    }
+                });
+
+                installed++;
+                log("feature accessor variant installed: " + api.accessorClassName);
+            } catch (Throwable throwable) {
+                lastFailure = throwable;
+            }
         }
-        final Class<?> booleanFeatureKey = Class.forName("H1.a", false, classLoader);
-        final Class<?> stringFeatureKey = Class.forName("H1.l", false, classLoader);
-        Class<?> featureAccessor = Class.forName("B2.a", false, classLoader);
-
-        Method booleanAccessor = featureAccessor.getDeclaredMethod("p", booleanFeatureKey);
-        XposedBridge.hookMethod(booleanAccessor, new XC_MethodHook() {
-            @Override
-            protected void afterHookedMethod(MethodHookParam param) {
-                String key = enumName(param.args != null && param.args.length > 0 ? param.args[0] : null);
-                if (SUPPORT_24MP_MENU.equals(key)) {
-                    param.setResult(Boolean.valueOf(shouldEnableProPictureSizeMenu()));
-                    return;
-                }
-                if (SUPPORT_ULTRA.equals(key)
-                        || SUPPORT_HIGH.equals(key)
-                        || SUPPORT_ADAPTIVE_PIXEL.equals(key)) {
-                    param.setResult(Boolean.TRUE);
-                }
-            }
-        });
-
-        Method stringAccessor = featureAccessor.getDeclaredMethod("k", stringFeatureKey);
-        XposedBridge.hookMethod(stringAccessor, new XC_MethodHook() {
-            @Override
-            protected void afterHookedMethod(MethodHookParam param) {
-                String key = enumName(param.args != null && param.args.length > 0 ? param.args[0] : null);
-                Object current = param.getResult();
-                String value = current instanceof String ? (String) current : "";
-                if (RES_24MP.equals(key) && !shouldEnable24MpFeature()) {
-                    param.setResult(VALUE_HIGH);
-                    return;
-                }
-                String forced = forcedResolution(key, value);
-                if (forced != null) {
-                    param.setResult(forced);
-                }
-            }
-        });
-
-        accessorsInstalled = true;
-        log("feature accessor hooks installed");
+        if (installed == 0) {
+            throw new ClassNotFoundException("No supported Expert RAW feature accessor found", lastFailure);
+        }
     }
 
     private static void hookUnsupported24MpResolutionGuard(final ClassLoader classLoader)
@@ -289,7 +334,7 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
     }
 
     private static void hookUnsupported24MpCommandGuard(final ClassLoader classLoader)
-            throws ClassNotFoundException, NoSuchMethodException {
+            throws Throwable {
         final Class<?> commandIdClass = Class.forName(
                 "com.samsung.android.app.galaxyraw.interfaces.CommandId",
                 false,
@@ -298,7 +343,7 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
                 "com.samsung.android.app.galaxyraw.interfaces.CameraSettings$Key",
                 false,
                 classLoader);
-        Class<?> commandMapClass = Class.forName("r1.e", false, classLoader);
+        Class<?> commandMapClass = findCommandMapClass(classLoader, settingKeyClass, commandIdClass, false);
 
         Method commandForValue = commandMapClass.getDeclaredMethod("b", int.class, settingKeyClass);
         XposedBridge.hookMethod(commandForValue, new XC_MethodHook() {
@@ -353,7 +398,7 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
             }
         });
 
-        Class<?> commandResourceClass = Class.forName("Q1.h", false, classLoader);
+        Class<?> commandResourceClass = findCommandResourceClass(classLoader, commandIdClass, false);
         Method commandResource = commandResourceClass.getDeclaredMethod("a", commandIdClass);
         XposedBridge.hookMethod(commandResource, new XC_MethodHook() {
             @Override
@@ -395,17 +440,62 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
             if (command == null) {
                 return null;
             }
-            Class<?> commandResourceClass = Class.forName("Q1.h", false, classLoader);
-            Field mapField = commandResourceClass.getDeclaredField("f3219a");
-            mapField.setAccessible(true);
-            Object mapObject = mapField.get(null);
-            if (mapObject instanceof Map) {
-                return ((Map) mapObject).get(command);
+            Class<?> commandResourceClass = findCommandResourceClass(classLoader, commandIdClass, true);
+            Field[] fields = commandResourceClass.getDeclaredFields();
+            for (int i = 0; i < fields.length; i++) {
+                Field field = fields[i];
+                if (!Modifier.isStatic(field.getModifiers()) || !Map.class.isAssignableFrom(field.getType())) {
+                    continue;
+                }
+                field.setAccessible(true);
+                Object mapObject = field.get(null);
+                if (mapObject instanceof Map) {
+                    Object value = ((Map) mapObject).get(command);
+                    if (value != null) {
+                        return value;
+                    }
+                }
             }
         } catch (Throwable throwable) {
             log("command resource fallback failed for " + commandName + ": " + throwable);
         }
         return null;
+    }
+
+    private static Class<?> findCommandMapClass(
+            ClassLoader classLoader,
+            Class<?> settingKeyClass,
+            Class<?> commandIdClass,
+            boolean initialize) throws ClassNotFoundException {
+        Throwable lastFailure = null;
+        for (int i = 0; i < COMMAND_MAP_CLASSES.length; i++) {
+            try {
+                Class<?> candidate = Class.forName(COMMAND_MAP_CLASSES[i], initialize, classLoader);
+                candidate.getDeclaredMethod("b", int.class, settingKeyClass);
+                candidate.getDeclaredMethod("e", commandIdClass);
+                return candidate;
+            } catch (Throwable throwable) {
+                lastFailure = throwable;
+            }
+        }
+        throw new ClassNotFoundException("No supported Expert RAW command map found", lastFailure);
+    }
+
+    private static Class<?> findCommandResourceClass(
+            ClassLoader classLoader,
+            Class<?> commandIdClass,
+            boolean initialize) throws ClassNotFoundException {
+        Throwable lastFailure = null;
+        for (int i = 0; i < COMMAND_RESOURCE_CLASSES.length; i++) {
+            try {
+                Class<?> candidate = Class.forName(COMMAND_RESOURCE_CLASSES[i], initialize, classLoader);
+                candidate.getDeclaredMethod("a", commandIdClass);
+                return candidate;
+            } catch (Throwable throwable) {
+                lastFailure = throwable;
+            }
+        }
+        throw new ClassNotFoundException("No supported Expert RAW command resource map found", lastFailure);
     }
 
     private static boolean isResolutionGetterName(String name) {
@@ -490,30 +580,41 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
     }
 
     private static void injectFeatureMap(ClassLoader classLoader, String source) {
-        try {
-            Class<?> featureLoader = Class.forName("H1.g", false, classLoader);
-            Field mapField = featureLoader.getDeclaredField("b");
-            mapField.setAccessible(true);
-            Object mapObject = mapField.get(null);
-            if (!(mapObject instanceof Map)) {
-                log("feature map not available from " + source);
-                return;
+        int patched = 0;
+        Throwable lastFailure = null;
+        for (int i = 0; i < FEATURE_APIS.length; i++) {
+            FeatureApi api = FEATURE_APIS[i];
+            try {
+                Class<?> featureLoader = Class.forName(api.loaderClassName, false, classLoader);
+                Field mapField = featureLoader.getDeclaredField("b");
+                if (!Modifier.isStatic(mapField.getModifiers()) || !Map.class.isAssignableFrom(mapField.getType())) {
+                    continue;
+                }
+                mapField.setAccessible(true);
+                Object mapObject = mapField.get(null);
+                if (!(mapObject instanceof Map)) {
+                    continue;
+                }
+                Map map = (Map) mapObject;
+                putLocal(map, SUPPORT_HIGH, "true");
+                putLocal(map, SUPPORT_ULTRA, Boolean.toString(isUltraDevice()));
+                putLocal(map, SUPPORT_ADAPTIVE_PIXEL, "true");
+                putLocal(map, RES_ULTRA, VALUE_ULTRA);
+                putLocalIfBlank(map, RES_HIGH, VALUE_HIGH);
+                if (shouldEnable24MpFeature()) {
+                    putLocalIfBlank(map, RES_24MP, VALUE_24MP);
+                } else {
+                    putLocal(map, RES_24MP, VALUE_HIGH);
+                }
+                patched++;
+                log("feature map patched via " + api.loaderClassName + " from " + source
+                        + ", entries=" + map.size() + ", " + deviceSummary());
+            } catch (Throwable throwable) {
+                lastFailure = throwable;
             }
-            Map map = (Map) mapObject;
-            putLocal(map, SUPPORT_HIGH, "true");
-            putLocal(map, SUPPORT_ULTRA, "true");
-            putLocal(map, SUPPORT_ADAPTIVE_PIXEL, "true");
-            putLocal(map, RES_ULTRA, VALUE_ULTRA);
-            putLocalIfBlank(map, RES_HIGH, VALUE_HIGH);
-            if (shouldEnable24MpFeature()) {
-                putLocalIfBlank(map, RES_24MP, VALUE_24MP);
-            } else {
-                putLocal(map, RES_24MP, VALUE_HIGH);
-            }
-            log("feature map patched from " + source + ", entries=" + map.size() + ", " + deviceSummary());
-        } catch (Throwable throwable) {
-            log("feature map patch failed from " + source + ": " + throwable);
-            log(throwable);
+        }
+        if (patched == 0) {
+            log("feature map patch unavailable from " + source + ": " + lastFailure);
         }
     }
 
@@ -530,7 +631,7 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
                     "com.samsung.android.app.galaxyraw.interfaces.CameraSettings$Key",
                     true,
                     classLoader);
-            Class<?> commandMapClass = Class.forName("r1.e", true, classLoader);
+            Class<?> commandMapClass = findCommandMapClass(classLoader, settingKeyClass, commandIdClass, true);
             Object replacement = replacementPictureSizeCommand(commandIdClass);
             Object menu = enumConstant(commandIdClass, COMMAND_PICTURE_SIZE_MENU);
             Object settingKey = enumConstant(settingKeyClass, KEY_BACK_CAMERA_PICTURE_RATIO);
@@ -787,6 +888,30 @@ public final class GalaxyRaw200MpHook implements IXposedHookLoadPackage {
             return;
         }
         XposedBridge.log(throwable);
+    }
+
+    private static final class FeatureApi {
+        final String loaderClassName;
+        final String booleanKeyClassName;
+        final String stringKeyClassName;
+        final String accessorClassName;
+        final String booleanAccessorMethod;
+        final String stringAccessorMethod;
+
+        FeatureApi(
+                String loaderClassName,
+                String booleanKeyClassName,
+                String stringKeyClassName,
+                String accessorClassName,
+                String booleanAccessorMethod,
+                String stringAccessorMethod) {
+            this.loaderClassName = loaderClassName;
+            this.booleanKeyClassName = booleanKeyClassName;
+            this.stringKeyClassName = stringKeyClassName;
+            this.accessorClassName = accessorClassName;
+            this.booleanAccessorMethod = booleanAccessorMethod;
+            this.stringAccessorMethod = stringAccessorMethod;
+        }
     }
 
     private interface Installer {

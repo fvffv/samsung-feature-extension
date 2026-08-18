@@ -80,12 +80,14 @@ public final class FingerprintStyleSettingsActivity extends Activity {
         root.addView(buildMaterialCard(), cardParams());
         setContentView(scrollView);
         refreshState();
+        LanguageManager.applyToActivity(this);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         refreshState();
+        LanguageManager.applyToActivity(this);
     }
 
     @Override

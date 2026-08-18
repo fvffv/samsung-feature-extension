@@ -206,6 +206,7 @@ public final class DeviceHealthActivity extends Activity {
         fasList = addAppSection("后台管控 / 限制应用");
 
         setContentView(scrollView);
+        LanguageManager.applyToActivity(this);
     }
 
     private void addFasControls() {
@@ -339,14 +340,15 @@ public final class DeviceHealthActivity extends Activity {
     }
 
     private void sendCommandIntent(Intent intent) {
-        statusText.setText("已发送请求，等待 SDHMS 响应...");
+        statusText.setText(LanguageManager.text(this, "已发送请求，等待 SDHMS 响应..."));
         sendBroadcast(intent);
         final String requestId = lastRequestId;
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 if (requestId != null && requestId.equals(lastRequestId)) {
-                    statusText.setText("还没有收到响应。请确认 LSPosed 已勾选 Samsung Device Health Manager Service 作用域并重启。");
+                    statusText.setText(LanguageManager.text(DeviceHealthActivity.this,
+                            "还没有收到响应。请确认 LSPosed 已勾选 Samsung Device Health Manager Service 作用域并重启。"));
                 }
             }
         }, 3000L);
@@ -355,16 +357,16 @@ public final class DeviceHealthActivity extends Activity {
     private void applyResponse(Bundle data) {
         lastRequestId = null;
         if (data == null) {
-            statusText.setText("收到空响应。");
+            statusText.setText(LanguageManager.text(this, "收到空响应。"));
             return;
         }
         boolean success = data.getBoolean("success", false);
         String message = data.getString("message", "");
         String error = data.getString("error", "");
         Bundle snapshot = data.getBundle("snapshot");
-        statusText.setText((success ? "已连接 SDHMS Hook" : "请求失败")
+        statusText.setText(LanguageManager.text(this, (success ? "已连接 SDHMS Hook" : "请求失败")
                 + (message.length() > 0 ? "\n" + message : "")
-                + (error.length() > 0 ? "\n" + error : ""));
+                + (error.length() > 0 ? "\n" + error : "")));
         if (snapshot != null) {
             applySnapshot(snapshot);
         }
@@ -398,9 +400,10 @@ public final class DeviceHealthActivity extends Activity {
         if (history != null && !history.isEmpty()) {
             thermalBuilder.append("\n历史:\n").append(joinRows(history));
         }
-        thermalText.setText(thermalBuilder.toString());
+        thermalText.setText(LanguageManager.text(this, thermalBuilder.toString()));
 
-        temperatureText.setText(joinRows(snapshot.getStringArrayList("temperatures")));
+        temperatureText.setText(LanguageManager.text(this,
+                joinRows(snapshot.getStringArrayList("temperatures"))));
         renderAppRows(batteryList, snapshot.getStringArrayList("batteryRows"));
         renderAppRows(anomalyList, snapshot.getStringArrayList("anomalyRows"));
         renderAppRows(highCpuList, snapshot.getStringArrayList("highCpuRows"));
@@ -566,12 +569,12 @@ public final class DeviceHealthActivity extends Activity {
     }
 
     private String onOff(boolean value) {
-        return value ? "是" : "否";
+        return LanguageManager.isEnglish(this) ? (value ? "Yes" : "No") : (value ? "是" : "否");
     }
 
     private TextView text(String value, int sp, int color, Typeface typeface) {
         TextView view = new TextView(this);
-        view.setText(value);
+        view.setText(LanguageManager.text(this, value));
         view.setTextSize(sp);
         view.setTextColor(color);
         view.setTypeface(typeface);

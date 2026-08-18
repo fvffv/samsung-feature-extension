@@ -101,6 +101,7 @@ public final class PassThroughChargingSettingsActivity extends Activity {
         });
 
         setContentView(scrollView);
+        LanguageManager.applyToActivity(this);
     }
 
     private void updateStatus() {

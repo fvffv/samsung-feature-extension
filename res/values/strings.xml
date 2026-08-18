@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">三星功能扩展</string>
-    <string name="xposed_description">为三星文件管理添加 WebDAV，解锁 Expert RAW 200MP，扩展应用分身，接入设备健康管理，提供 NFC 息屏刷卡开关，接入 Bixby 自定义 OpenAI 兼容后端，并支持 One UI 主屏幕图标自定义。</string>
+    <string name="xposed_description">为三星文件管理添加 WebDAV，解锁 Expert RAW 200MP，并在 One UI 8.5 中为 S24 Ultra 以下机型开放视频编辑与快速面板音频橡皮擦；同时扩展应用分身、设备健康管理、NFC 息屏刷卡及 One UI 主屏幕图标自定义。</string>
     <string name="shortcut_toggle_passthrough_short">切换旁路供电</string>
     <string name="shortcut_toggle_passthrough_long">开启或关闭全局旁路供电</string>
     <string name="shortcut_toggle_passthrough_disabled">旁路供电快捷操作不可用</string>
