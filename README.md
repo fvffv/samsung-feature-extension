@@ -6,7 +6,7 @@ Samsung / One UI 设备的 LSPosed 功能扩展模块。
 
 - 应用名 / App name: `三星功能扩展`
 - 包名 / Package name: `com.samsung.feature.extension`
-- 版本 / Version: `1.25`
+- 版本 / Version: `1.26`
 - GitHub: [fvffv/samsung-feature-extension](https://github.com/fvffv/samsung-feature-extension)
 
 ## 中文功能
@@ -33,6 +33,9 @@ Samsung / One UI 设备的 LSPosed 功能扩展模块。
 
 - **NFC 息屏刷卡**
   - 通过独立开关设置息屏状态下的 NFC 刷卡行为。
+
+- **应用兼容策略保持**
+  - 保持开发者选项中的 `Disable app compatibility policies` 持续开启。
 
 - **One UI 主屏幕自定义**
   - 自定义应用图标、图标形状、圆角、应用名称和名称字体。
@@ -92,6 +95,9 @@ Samsung / One UI 设备的 LSPosed 功能扩展模块。
 
 - **NFC screen-off card tapping**
   - Uses a dedicated switch to control NFC card tapping while the screen is off.
+
+- **App compatibility policy control**
+  - Keeps Android's `Disable app compatibility policies` developer option enabled.
 
 - **One UI Home customization**
   - Customize app icons, icon shapes, corner radius, app labels, and label fonts.

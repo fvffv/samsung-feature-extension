@@ -36,6 +36,11 @@ public final class LanguageManager {
         add("查看 Samsung Device Health Manager Service 的温控、电池、异常检测和后台限制状态，并提供常用控制开关。", "View thermal, battery, anomaly-detection, and background restriction status from Samsung Device Health Manager Service, with common control switches.");
         add("NFC 息屏刷卡", "NFC Screen-off Payments");
         add("控制是否允许 NFC 在息屏状态下按照亮屏解锁状态处理刷卡请求，默认关闭，可在此单独启用。", "Controls whether NFC processes payments while the screen is off as if the unlocked screen were on. Disabled by default and can be enabled here.");
+        add("持续禁用应用兼容策略", "Keep App Compatibility Policies Disabled");
+        add("保持开发者选项中的“Disable app compatibility policies”处于开启状态。开启后模块会在系统设置写回该值，避免它运行一段时间后自动关闭。", "Keeps the developer option “Disable app compatibility policies” enabled. When enabled, the module writes the value back through Android Settings so it does not turn itself off later.");
+        add("保持 Disable app compatibility policies", "Keep Disable app compatibility policies");
+        add("已开启：系统设置会持续保持该策略为禁用。", "Enabled: Android Settings will keep this policy disabled.");
+        add("已关闭：不再干预系统的应用兼容策略设置。", "Disabled: the module no longer changes app compatibility-policy settings.");
         add("触控高采样率", "High Touch Sampling Rate");
         add("给手指触控补发三星原生 GOS TSP 高扫描率策略，熄屏后亮屏会自动脉冲重开一次。", "Re-sends Samsung's native GOS TSP high-sampling policy for finger touch, including an automatic off/on pulse after the screen turns back on.");
         add("全局旁路供电", "Global Bypass Charging");

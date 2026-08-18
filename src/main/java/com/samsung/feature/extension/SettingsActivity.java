@@ -85,6 +85,12 @@ public final class SettingsActivity extends Activity {
                     "com.android.nfc"
             ),
             new FeatureItem(
+                    "持续禁用应用兼容策略",
+                    "保持开发者选项中的“Disable app compatibility policies”处于开启状态，避免系统运行一段时间后自动关闭。",
+                    CompatibilityPolicySettingsActivity.class,
+                    "com.android.settings"
+            ),
+            new FeatureItem(
                     "触控高采样率",
                     "给手指触控补发三星原生 GOS TSP 高扫描率策略，熄屏后亮屏会自动脉冲重开一次。",
                     TouchSamplingSettingsActivity.class,
