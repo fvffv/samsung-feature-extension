@@ -1,4 +1,5 @@
 /build/
+/.tools/
 /.idea/
 *.iml
 Thumbs.db

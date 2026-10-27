@@ -1,10 +1,13 @@
 com.sec.android.app.myfiles
+com.samsung.android.app.smartcapture
+com.samsung.android.service.aircommand
 com.samsung.android.app.myfiles
 com.samsung.android.app.networkstoragemanager
 com.samsung.android.app.galaxyraw
 com.samsung.android.da.daagent
 com.sec.android.sdhms
 com.samsung.android.game.gametools
+com.samsung.android.game.gos
 com.android.nfc
 com.sec.android.app.launcher
 com.sec.android.app.camera

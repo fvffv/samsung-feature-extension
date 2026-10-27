@@ -19,6 +19,62 @@ public final class LanguageManager {
     private static final Map<String, String> ENGLISH_FRAGMENTS = new LinkedHashMap<>();
 
     static {
+        add("三星录屏原画", "Samsung Original-quality Recording");
+        add("在三星截屏的“视频质量”中加入原画：全屏按当前系统分辨率，区域按选区像素录制，并使用硬件编码器支持的最高帧率与码率。", "Adds Original to Samsung Capture video quality: record the full screen at its current native resolution or a selected area's pixels, using the highest hardware-supported frame rate and bitrate.");
+        // S Pen air mouse and proportional pop-up scaling, including live status.
+        add("S Pen 空中鼠标", "S Pen Air Mouse");
+        add("用蓝牙 S Pen 控制系统原生鼠标，按钮短按点击、按住长按；需要 Root，可调整灵敏度，默认关闭。", "Control the native system pointer with a Bluetooth S Pen. Press to click and hold to long-press or drag. Requires root; sensitivity is adjustable. Off by default.");
+        add("小窗等比例缩放", "Proportional Pop-up Scaling");
+        add("缩小弹出式小窗时同步缩小文字、图片与控件；可独立开关，需要系统框架作用域，首次安装后重启。", "Scale text, images and controls with pop-up windows. Requires the System Framework scope and a restart after first installation.");
+        add("使用系统原生鼠标光标。需要带蓝牙隔空操作的 S Pen（如 S22/S23/S24 Ultra），并允许三星功能扩展使用 Root。首次使用需将 Air command 加入 LSPosed 作用域。", "Uses the native system pointer. Requires a Bluetooth Air Actions S Pen, such as on S22/S23/S24 Ultra, and root access for this module. Add Air command to the LSPosed scope before first use.");
+        add("开启空中鼠标", "Enable Air Mouse");
+        add("转动笔身或手腕移动系统鼠标；笔按钮相当于鼠标左键，短按点击、按住长按，按住时移动可拖拽。指针样式和加速由系统管理。插笔、息屏、锁屏时移除虚拟鼠标，关闭后恢复隔空操作。持续使用会增加笔的耗电。", "Rotate the pen or your wrist to move the pointer. The pen button acts as the left mouse button: press to click, hold to long-press, and move while holding to drag. Android manages pointer style and acceleration. Docking the pen, turning off the screen or locking the phone removes the virtual mouse. Disabling restores Air Actions. Continuous use consumes more pen battery.");
+        add("默认 50%。小幅移动加强抑抖，快速移动降低延迟，并将位移拆分为更细的系统鼠标事件。强度越高越稳，但跟手性会下降；设为 0 可对比原始效果。按住按钮仍可拖动。", "Default: 50%. Small movements receive more stabilization, while fast movements use less filtering to reduce lag. Motion is split into smaller system mouse events. Higher strength is steadier but adds lag. Set to 0 to compare unfiltered input. Dragging remains available.");
+        add("打开系统 S Pen 设置", "Open System S Pen Settings");
+        add("请从系统设置 → 高级功能 → S Pen 打开", "Open Settings → Advanced features → S Pen.");
+        add("正在读取运行状态…", "Reading status…");
+        add("可在下方验证按钮点击和长按（不会执行其他操作）", "Use the area below to test clicks and long presses. It performs no other actions.");
+        add("点击 / 长按测试区", "Click / Long-press Test");
+        add("AirCommand 尚未连接模块。请在 LSPosed 作用域勾选“Air command”，重启 AirCommand 或手机后再试。", "AirCommand is not connected to the module. Select Air command in the LSPosed scope, then restart AirCommand or the phone.");
+        add("等待 S Pen", "Waiting for S Pen");
+        add("\n请持续移动时观察；静止和小数位移会降低计数。输出频率不等于传感器采样率。", "\nObserve while moving continuously. Pauses and subpixel movement lower the count. Output rate is not the sensor sampling rate.");
+        add("\n近期平均：SDK 输入 %.1f 次/秒 · 位移输出 %.1f 次/秒", "\nRecent average: SDK input %.1f/s · Motion output %.1f/s");
+        add("（关闭）", " (off)");
+        add("缩小弹出式小窗时，让应用内的文字、图片和控件一起等比例缩小，减少界面挤压和大面积裁切。", "Scale an app's text, images and controls together as its pop-up window shrinks, reducing cramped layouts and clipping.");
+        add("开启小窗内容缩放", "Enable Pop-up Content Scaling");
+        add("仅作用于手机主屏幕上的普通弹出式小窗。全屏、分屏、画中画及 DeX 不受此开关影响。改变窗口宽高比时，应用仍可能重新排版。部分自行绘制或使用像素固定布局的应用可能有适配差异。", "Applies to standard pop-up windows on the phone's main display. Fullscreen, split screen, picture-in-picture and DeX are unaffected. Changing the window's aspect ratio may still cause layout changes. Apps with custom rendering or fixed-pixel layouts may behave differently.");
+        add("首次安装需要勾选 LSPosed 的“系统框架 / android”作用域并重启手机；之后开关会自动同步。已有小窗可拖动边角调整一次尺寸，或重新打开。关闭后恢复系统默认显示密度。", "After first installation, select System Framework / android in the LSPosed scope and restart the phone. Later changes sync automatically. Resize or reopen an existing window if needed. Disabling restores the default display density.");
+        add("系统缩放接口尚未连接。请在 LSPosed 作用域勾选“系统框架 / android”，安装此版本后重启手机一次。", "The system scaling interface is not connected. Select System Framework / android in the LSPosed scope and restart the phone after installation.");
+        add("系统接口已连接", "System interface connected");
+        add("读取系统状态…", "Reading system status…");
+        add("模块已连接，模式关闭", "Module connected; Air Mouse is off");
+        add("按钮按住超过 10 秒，已安全释放", "Button held for over 10 seconds; released automatically");
+        add("笔已插入，暂停系统鼠标", "S Pen is docked; system mouse paused");
+        add("息屏或锁屏，暂停系统鼠标", "Screen off or phone locked; system mouse paused");
+        add("正在连接 AirCommand S Pen 接口…", "Connecting to the AirCommand S Pen interface…");
+        add("正在创建系统鼠标；如有 Root 提示，请允许三星功能扩展", "Creating the system mouse. Grant root access to Samsung Feature Extension if prompted.");
+        add("AirCommand 服务已断开", "AirCommand service disconnected");
+        add("系统原生鼠标已连接，等待 S Pen 操作", "Native system mouse connected; waiting for S Pen input");
+        add("系统原生鼠标运行中", "Native system mouse active");
+        add("小窗等比例缩放已开启", "Proportional pop-up scaling enabled");
+        add("系统接口已连接，缩放关闭", "System interface connected; scaling disabled");
+        addFragment("灵敏度：", "Sensitivity: ");
+        addFragment("防抖 / 平滑强度：", "Stabilization / Smoothing: ");
+        addFragment("读取状态失败：", "Failed to read status: ");
+        addFragment("状态读取失败：", "Failed to read status: ");
+        addFragment("移动事件：", "Motion events: ");
+        addFragment("按钮事件：", "Button events: ");
+        addFragment("收到点击：", "Click received: ");
+        addFragment("收到长按：", "Long press received: ");
+        addFragment("已处理配置次数：", "Configurations processed: ");
+        addFragment("最近的小窗显示密度：", "Latest pop-up density: ");
+        addFragment("未启用 / 已安全停止：", "Disabled / stopped safely: ");
+        addFragment("。关闭开关后重新开启可重试。", ". Turn the mode off and on to retry.");
+        addFragment("系统鼠标设备已断开", "System mouse device disconnected");
+        addFragment("未检测到系统鼠标。请允许三星功能扩展的 Root 授权后关闭开关重试", "No system mouse detected. Grant root access to Samsung Feature Extension, then turn the mode off and on.");
+        addFragment("配置接口不兼容", "Configuration interface incompatible");
+        addFragment("此固件不支持小窗缩放接口", "This firmware does not support the pop-up scaling interface");
+        addFragment("配置同步初始化失败", "Failed to initialize configuration sync");
         // Main screen and feature catalog.
         add("三星功能扩展", "Samsung Feature Extension");
         add("当前模块包含以下功能。", "The module currently includes the following features.");
@@ -34,6 +90,8 @@ public final class LanguageManager {
         add("把应用分身的可用列表扩展为已安装的非系统应用。", "Extends the Dual Messenger list to installed non-system apps.");
         add("设备健康管理", "Device Health Manager");
         add("查看 Samsung Device Health Manager Service 的温控、电池、异常检测和后台限制状态，并提供常用控制开关。", "View thermal, battery, anomaly-detection, and background restriction status from Samsung Device Health Manager Service, with common control switches.");
+        add("GOS 隐藏面板", "GOS Hidden Panel");
+        add("打开 Game Optimizing Service 内置的工程测试面板，查看游戏性能策略、设备信息和当前特性开关。", "Opens Game Optimizing Service's built-in engineering panel to view game-performance policies, device information, and current feature flags.");
         add("NFC 息屏刷卡", "NFC Screen-off Payments");
         add("控制是否允许 NFC 在息屏状态下按照亮屏解锁状态处理刷卡请求，默认关闭，可在此单独启用。", "Controls whether NFC processes payments while the screen is off as if the unlocked screen were on. Disabled by default and can be enabled here.");
         add("持续禁用应用兼容策略", "Keep App Compatibility Policies Disabled");
@@ -237,6 +295,21 @@ public final class LanguageManager {
         add("收到空响应。", "Received an empty response.");
         add("已连接 SDHMS Hook", "Connected to SDHMS hook");
         add("请求失败", "Request failed");
+
+        // GOS built-in engineering panel.
+        add("打开 Game Optimizing Service 内置的工程测试面板，用于查看游戏性能策略、设备信息和当前特性开关。", "Open Game Optimizing Service's built-in engineering panel to view game-performance policies, device information, and current feature flags.");
+        add("仅建议查看。面板中的 Fake device name、固定 FPS、JSON/SIOP policy、CPU/GPU lock 等为三星工程调试项，修改后可能影响游戏稳定性；本模块不会替你启用这些项目。", "Viewing only is recommended. Fake device name, fixed FPS, JSON/SIOP policy, and CPU/GPU lock are Samsung engineering controls; changing them can affect game stability. This module does not enable them for you.");
+        add("打开 GOS 测试面板", "Open GOS Test Panel");
+        add("准备就绪。若首次启动失败，请在 LSPosed 中勾选 Game Optimizing Service 作用域后重启 GOS 或重启手机。", "Ready. If the first launch fails, select the Game Optimizing Service scope in LSPosed, then restart GOS or the phone.");
+        add("正在连接 GOS 并请求打开测试面板...", "Connecting to GOS and requesting the test panel...");
+        add("未收到 GOS 响应。请确认 LSPosed 已勾选 Game Optimizing Service 作用域，并重启 GOS 或手机后重试。", "No response from GOS. Confirm the Game Optimizing Service scope is selected in LSPosed, then restart GOS or the phone and try again.");
+        add("已启动 GOS 测试面板。", "GOS test panel started.");
+        add("面板包含的页面", "Panel Pages");
+        add("Device info：设备与当前 GOS 状态", "Device info: device details and current GOS state");
+        add("Global feature flags：全局特性开关", "Global feature flags: global feature switches");
+        add("Common / JSON features：常用与 JSON 策略测试", "Common / JSON features: common and JSON policy tests");
+        add("SPA、GFI、SIOP Mode：性能、插帧与游戏温控策略", "SPA, GFI, SIOP Mode: performance, frame interpolation, and game thermal policies");
+        add("Resume Boost、Update alarm、Galaxy Apps：恢复加速、更新与游戏包数据", "Resume Boost, Update alarm, Galaxy Apps: resume boost, updates, and game-package data");
         add("刷新时间: ", "Refreshed: ");
         add("Limiter 可用: ", "Limiter available: ");
         add("总禁用温控降频: ", "Thermal throttling master disabled: ");
@@ -370,7 +443,11 @@ public final class LanguageManager {
     }
 
     public static String text(Context context, String source) {
-        if (source == null || !isEnglish(context)) {
+        return text(isEnglish(context), source);
+    }
+
+    public static String text(boolean english, String source) {
+        if (source == null || !english) {
             return source;
         }
         String translated = ENGLISH.get(source);

@@ -2,6 +2,7 @@ package com.samsung.feature.extension.camera;
 
 import android.content.Context;
 import android.app.Application;
+import android.os.Build;
 import android.util.Range;
 
 import com.samsung.feature.extension.CameraBitrateSettingsProvider;
@@ -164,6 +165,7 @@ public final class CameraOneUi85VideoUnlockHook implements IXposedHookLoadPackag
                 patched.put("value", "true");
                 patched.put("hdr", "true");
                 patched.put("hdr10", "true");
+                ensureCrashSafeFeatureDefaults(patched);
                 ensureSupportedModes(key, patched);
                 param.setResult(patched);
             }
@@ -172,16 +174,9 @@ public final class CameraOneUi85VideoUnlockHook implements IXposedHookLoadPackag
     }
 
     /**
-     * Samsung Camera gates the horizontal-lock variant of Super Steady with
-     * {@code SUPPORT_SUPER_STEADY_HORIZONTAL_LOCK}.  In Camera 16.5 this gate
-     * is based on the device launch SDK (S24 and later), rather than the video
-     * resolution's Super VDIS capability.  The camera already contains the
-     * complete UI, command, and recording-engine mode for this option.
-     *
-     * <p>Keep this as a narrow result override.  Older camera builds that do
-     * not expose the {@code C.e / O1.d} API simply skip it and continue using
-     * {@link CameraProVideoHdr10Hook}; current Camera 16.5 builds only receive
-     * a {@code true} result for this one feature key.</p>
+     * Samsung Camera 16.5 keeps boolean device capabilities behind C.e/O1.d.
+     * Keep every override narrow: horizontal lock remains enabled as before,
+     * while Pro Video 120fps is added only for the Galaxy S23 Ultra main lens.
      */
     private static void hookHorizontalLockFeature(final ClassLoader classLoader) throws Throwable {
         if (horizontalLockFeatureHookInstalled) {
@@ -194,7 +189,10 @@ public final class CameraOneUi85VideoUnlockHook implements IXposedHookLoadPackag
         XposedBridge.hookMethod(isFeatureSupported, new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
-                if ("SUPPORT_SUPER_STEADY_HORIZONTAL_LOCK".equals(enumName(firstArg(param)))) {
+                String key = enumName(firstArg(param));
+                if ("SUPPORT_SUPER_STEADY_HORIZONTAL_LOCK".equals(key)
+                        || (isGalaxyS23Ultra()
+                        && "SUPPORT_PRO_VIDEO_WIDE_LENS_120FPS".equals(key))) {
                     param.setResult(Boolean.TRUE);
                 }
             }
@@ -666,6 +664,24 @@ public final class CameraOneUi85VideoUnlockHook implements IXposedHookLoadPackag
         return source instanceof Map ? new HashMap((Map) source) : new HashMap();
     }
 
+    /**
+     * Camera 16.5 assumes these entries are always present and calls toString()
+     * without a null check. Unsupported S23 Ultra 120 fps maps are empty before
+     * this hook enables them, so explicitly disable the dependent capabilities.
+     */
+    private static void ensureCrashSafeFeatureDefaults(Map feature) {
+        putFeatureDefault(feature, "effect", "false");
+        putFeatureDefault(feature, "object-tracking", "false");
+        putFeatureDefault(feature, "snapshot-support", "false");
+        putFeatureDefault(feature, "vdis", "false");
+    }
+
+    private static void putFeatureDefault(Map feature, String key, String value) {
+        if (!feature.containsKey(key) || feature.get(key) == null) {
+            feature.put(key, value);
+        }
+    }
+
     private static void ensureSupportedModes(String featureKey, Map feature) {
         Object value = feature.get("supported-mode");
         String modes = value instanceof String ? (String) value : "";
@@ -674,8 +690,19 @@ public final class CameraOneUi85VideoUnlockHook implements IXposedHookLoadPackag
             modes = appendMode(modes, "pro_video");
         } else if (featureKey.indexOf("3840X") >= 0) {
             modes = appendMode(modes, "slow_motion");
+            if (isGalaxyS23Ultra()) {
+                modes = appendMode(modes, "pro_video");
+            }
         }
         feature.put("supported-mode", modes);
+    }
+
+    private static boolean isGalaxyS23Ultra() {
+        String model = Build.MODEL == null ? "" : Build.MODEL;
+        String device = Build.DEVICE == null ? "" : Build.DEVICE;
+        return model.startsWith("SM-S918")
+                || "SC-52D".equals(model)
+                || device.startsWith("dm3q");
     }
 
     private static String appendMode(String modes, String required) {

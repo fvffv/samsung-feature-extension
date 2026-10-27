@@ -1,13 +1,18 @@
 com.samsung.feature.extension.audioeraser.SystemUiAudioEraserHook
+com.samsung.feature.extension.recorder.ScreenRecorderNativeHook
+com.samsung.feature.extension.freeform.FreeformScaleHook
+com.samsung.feature.extension.spen.SpenMouseHook
 com.samsung.feature.extension.MyFilesWebDavHook
 com.samsung.feature.extension.galaxyraw200mp.GalaxyRaw200MpHook
 com.samsung.feature.extension.dualappextender.DualAppExtenderHook
 com.samsung.feature.extension.sdhmsmanager.SdhmsManagerHook
+com.samsung.feature.extension.gos.GosTestPanelHook
 com.samsung.feature.extension.nfcscreenofftap.NfcScreenOffTapHook
 com.samsung.feature.extension.compatibility.CompatibilityPolicyHook
 com.samsung.feature.extension.touchsampling.TouchSamplingHook
 com.samsung.feature.extension.passthrough.PassThroughChargingHook
 com.samsung.feature.extension.LauncherIconCustomizerHook
+com.samsung.feature.extension.icons.LauncherIconShapeHook
 com.samsung.feature.extension.camera.CameraOneUi85VideoUnlockHook
 com.samsung.feature.extension.camera.CameraProVideoHdr10Hook
 com.samsung.feature.extension.SettingsCustomFontHook
@@ -15,3 +20,4 @@ com.samsung.feature.extension.fingerprint.FingerprintStyleHook
 com.samsung.feature.extension.charging.ChargingStyleHook
 com.samsung.feature.extension.videoeditor.VideoEditorAudioEraserHook
 com.samsung.feature.extension.phone.TextCallGreetingHook
+com.samsung.feature.extension.bixby.BixbySmartExecutionHook

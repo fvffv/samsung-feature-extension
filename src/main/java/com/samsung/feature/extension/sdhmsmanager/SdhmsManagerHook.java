@@ -384,6 +384,16 @@ public final class SdhmsManagerHook implements IXposedHookLoadPackage {
             return null;
         }
         Throwable lastFailure = null;
+        try {
+            Object oneUi7Limiter = SdhmsOneUi7Compatibility.resolveLimiter(context);
+            if (oneUi7Limiter != null) {
+                log("resolved One UI 7 limiter: " + className(oneUi7Limiter));
+                return oneUi7Limiter;
+            }
+        } catch (Throwable throwable) {
+            lastFailure = throwable;
+            log("One UI 7 limiter branch failed: " + throwable);
+        }
         Class<?> limiterClass = findLimiterClass();
         if (limiterClass != null) {
             try {

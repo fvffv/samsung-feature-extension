@@ -40,6 +40,25 @@ public final class SettingsActivity extends Activity {
             "https://api.github.com/repos/fvffv/samsung-feature-extension/releases/latest";
 
     private static final FeatureItem[] FEATURES = {
+            FeatureItem.external(
+                    "三星录屏原画",
+                    "在三星截屏的“视频质量”中加入原画：全屏按当前系统分辨率，区域按选区像素录制，并使用硬件编码器支持的最高帧率与码率。",
+                    "com.samsung.android.app.settings.SettingsActivity",
+                    "com.samsung.android.app.smartcapture",
+                    "com.samsung.android.app.smartcapture"
+            ),
+            new FeatureItem(
+                    "小窗等比例缩放",
+                    "缩小弹出式小窗时同步缩小文字、图片与控件；可独立开关，需要系统框架作用域，首次安装后重启。",
+                    FreeformScaleSettingsActivity.class,
+                    "android"
+            ),
+            new FeatureItem(
+                    "S Pen 空中鼠标",
+                    "用蓝牙 S Pen 控制系统原生鼠标，按钮短按点击、按住长按；需要 Root，可调整灵敏度，默认关闭。",
+                    SpenMouseSettingsActivity.class,
+                    "com.samsung.android.service.aircommand"
+            ),
             new FeatureItem(
                     "三星文件管理 WebDAV",
                     "在添加网络存储中增加 WebDAV，支持目录浏览、上传、下载、复制、移动和删除等常用文件操作。",
@@ -77,6 +96,12 @@ public final class SettingsActivity extends Activity {
                     "查看 Samsung Device Health Manager Service 的温控、电池、异常检测和后台限制状态，并提供常用控制开关。",
                     DeviceHealthActivity.class,
                     "com.sec.android.sdhms"
+            ),
+            new FeatureItem(
+                    "GOS 隐藏面板",
+                    "打开 Game Optimizing Service 内置的工程测试面板，查看游戏性能策略、设备信息和当前特性开关。",
+                    GosTestPanelActivity.class,
+                    "com.samsung.android.game.gos"
             ),
             new FeatureItem(
                     "NFC 息屏刷卡",

@@ -6,10 +6,28 @@ Samsung / One UI 设备的 LSPosed 功能扩展模块。
 
 - 应用名 / App name: `三星功能扩展`
 - 包名 / Package name: `com.samsung.feature.extension`
-- 版本 / Version: `1.26`
+- 版本 / Version: `1.30` (`versionCode 194`)
 - GitHub: [fvffv/samsung-feature-extension](https://github.com/fvffv/samsung-feature-extension)
 
 ## 中文功能
+
+- **三星录屏原画**
+  - 在三星截屏的“视频质量”中增加“原画”，保留原有画质选项。
+  - 全屏按当前系统分辨率采集，区域录制按选区像素输出，并按编码器要求对齐尺寸。
+  - 查询硬件支持的最高帧率和码率；需要新增作用域 `com.samsung.android.app.smartcapture`。
+  - 已验证硬件编码器接受配置；三星实际输出文件和持续录制稳定性仍需实录确认，见[实现与验证说明](docs/original-screen-recording.md)。
+
+- **S Pen 空中鼠标**
+  - 使用带蓝牙隔空操作的 S Pen 控制系统原生鼠标；按钮支持点击、长按和按住拖动。
+  - 支持灵敏度与防抖/平滑强度调节，需要 Root 和 Air command 作用域。
+
+- **小窗等比例缩放**
+  - 缩小普通弹出式小窗时同步缩小应用内容，提供独立开关。
+  - 需要系统框架作用域，首次安装后重启；全屏、分屏、画中画和 DeX 保持原有行为。
+
+- **双语与图标形状兼容**
+  - S Pen 与小窗页面支持模块中英文切换，包括实时状态、数值与错误提示。
+  - 为 One UI Home 中没有透明圆角的方形位图补上系统图标蒙版，已在真机核对。
 
 - **WebDAV 网络存储**
   - 在“我的文件”网络存储中添加 WebDAV。
@@ -73,6 +91,22 @@ Samsung / One UI 设备的 LSPosed 功能扩展模块。
 
 ## English Features
 
+- **Original-quality screen recording**
+  - Adds Original to Samsung Capture's Video quality selector.
+  - Uses the current native display resolution or selected-area pixels, with encoder-required alignment and the highest hardware-supported frame rate and bitrate.
+  - Requires the `com.samsung.android.app.smartcapture` scope. Hardware codec configuration has been checked; actual Samsung recording output and sustained performance still require recording validation.
+
+- **S Pen air mouse**
+  - Controls the native system pointer with a Bluetooth Air Actions S Pen, including clicks, long presses, dragging, sensitivity and adaptive smoothing.
+  - Requires root access and the Air command scope.
+
+- **Proportional pop-up scaling**
+  - Scales app content with a standard pop-up window using an independent toggle; requires the System Framework scope and an initial restart.
+
+- **Bilingual pages and icon shapes**
+  - Chinese and English support for S Pen and pop-up settings, including live status and controls.
+  - Applies the system icon mask to opaque square bitmap icons in One UI Home while preserving already-shaped icons.
+
 - **WebDAV network storage**
   - Adds WebDAV to Samsung My Files network storage.
   - Manages server addresses, account details, and network-storage entries.
@@ -135,6 +169,12 @@ Samsung / One UI 设备的 LSPosed 功能扩展模块。
 
 ## Main Source Files
 
+- [ScreenRecorderNativeHook.java](src/main/java/com/samsung/feature/extension/recorder/ScreenRecorderNativeHook.java)
+- [NativeRecordingProfile.java](src/main/java/com/samsung/feature/extension/recorder/NativeRecordingProfile.java)
+- [SpenMouseHook.java](src/main/java/com/samsung/feature/extension/spen/SpenMouseHook.java)
+- [FreeformScaleHook.java](src/main/java/com/samsung/feature/extension/freeform/FreeformScaleHook.java)
+- [LauncherIconShapeHook.java](src/main/java/com/samsung/feature/extension/icons/LauncherIconShapeHook.java)
+- [LanguageManager.java](src/main/java/com/samsung/feature/extension/LanguageManager.java)
 - [SettingsActivity.java](src/main/java/com/samsung/feature/extension/SettingsActivity.java)
 - [MyFilesWebDavHook.java](src/main/java/com/samsung/feature/extension/MyFilesWebDavHook.java)
 - [GalaxyRaw200MpHook.java](src/main/java/com/samsung/feature/extension/galaxyraw200mp/GalaxyRaw200MpHook.java)
@@ -142,3 +182,11 @@ Samsung / One UI 设备的 LSPosed 功能扩展模块。
 - [VideoEditorAudioEraserHook.java](src/main/java/com/samsung/feature/extension/videoeditor/VideoEditorAudioEraserHook.java)
 - [SystemUiAudioEraserHook.java](src/main/java/com/samsung/feature/extension/audioeraser/SystemUiAudioEraserHook.java)
 - [TextCallGreetingHook.java](src/main/java/com/samsung/feature/extension/phone/TextCallGreetingHook.java)
+
+## Manual Build / 手动构建
+
+当前源码对应 `build-v98.ps1`（1.30 / 194），公共构建逻辑为 `build-v54.ps1`。构建需要本地 `.tools` 中的 JDK 21、Apktool、签名工具、Android API JAR、基础资源 APK，以及 Microsoft Android SDK 工作负载中的 D8 / aapt2。开发工具缓存、分析用 APK、构建产物和签名密钥不作为源码同步。
+
+The current source is built by `build-v98.ps1`, using the shared `build-v54.ps1`. Prepare the local `.tools` dependencies and Microsoft Android SDK workload before building. Tool caches, analysis APKs, build output and signing keys are not included in this source snapshot.
+
+检查入口位于 `tests/`；设备验证记录与未验证边界位于 `docs/`。源码同步不自动创建 Git 提交或推送。

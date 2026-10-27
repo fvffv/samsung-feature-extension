@@ -24,6 +24,16 @@ public abstract class XC_MethodHook {
 
         public void setResult(Object result) {
         }
+
+        public void setThrowable(Throwable throwable) {
+        }
+
+        public void setObjectExtra(String key, Object value) {
+        }
+
+        public Object getObjectExtra(String key) {
+            return null;
+        }
     }
 
     public final class Unhook {
